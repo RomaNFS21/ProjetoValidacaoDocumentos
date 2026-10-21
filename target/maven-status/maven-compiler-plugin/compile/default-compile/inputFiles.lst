@@ -1,0 +1,12 @@
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\domain\dto\CriteriosValidacao.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\domain\dto\DadosDocumento.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\domain\dto\ValidacaoResponseDTO.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\domain\entity\DadosExtraidos.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\domain\entity\Documento.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\domain\entity\Validacao.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\domain\enums\StatusValidacao.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\domain\enums\TipoDocumento.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\repository\DadosExtraidosRepository.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\repository\DocumentoRepository.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\repository\ValidacaoRepository.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\ValidacaoDocumentosApplication.java

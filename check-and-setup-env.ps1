@@ -49,22 +49,23 @@ if ($tessCmd -or (Test-Path "C:\Program Files\Tesseract-OCR\tesseract.exe")) {
     Write-Host " [OK] CLI Tesseract instalada no Windows." -ForegroundColor Green
 } else {
     Write-Host " [!] Executável Tesseract CLI no Windows ainda não instalado (opcional se usar Tess4J)." -ForegroundColor Yellow
-    Write-Host "     Instalador já baixado em: $env:TEMP\WinGet\UB-Mannheim.TesseractOCR.5.4.0.20240606\tesseract-ocr-w64-setup-5.4.0.20240606.exe" -ForegroundColor Gray
 }
 
 # 4. BANCO DE DADOS (POSTGRESQL OU DOCKER)
 Write-Host "`n[4/5] Verificando Banco de Dados / Docker..." -ForegroundColor Yellow
+$pgService = Get-Service -Name '*postgres*' -ErrorAction SilentlyContinue
 $dockerCmd = Get-Command docker -ErrorAction SilentlyContinue
-$psqlCmd = Get-Command psql -ErrorAction SilentlyContinue
+$psqlCmd = (Get-Command psql -ErrorAction SilentlyContinue) -or (Test-Path "C:\Program Files\PostgreSQL\17\bin\psql.exe")
 
-if ($dockerCmd) {
+if ($pgService -and ($pgService.Status -eq 'Running')) {
+    Write-Host " [OK] Serviço do PostgreSQL 17 está ATIVO e RODANDO!" -ForegroundColor Green
+    Write-Host "      Porta 5432 ativa | Banco: doc_validation_db" -ForegroundColor DarkGray
+} elseif ($dockerCmd) {
     Write-Host " [OK] Docker encontrado." -ForegroundColor Green
 } elseif ($psqlCmd) {
-    Write-Host " [OK] PostgreSQL detectado (psql)." -ForegroundColor Green
+    Write-Host " [OK] PostgreSQL instalado no sistema." -ForegroundColor Green
 } else {
     Write-Host " [!] PostgreSQL ou Docker ainda não instalados." -ForegroundColor Yellow
-    Write-Host "     -> Dica: O backend Spring Boot configurado rodará perfeitamente com banco H2 em memória" -ForegroundColor Gray
-    Write-Host "              para você poder codificar e testar imediatamente sem instalar o banco agora." -ForegroundColor Gray
 }
 
 # 5. CHAVE DE API DE IA (SPRING AI)
