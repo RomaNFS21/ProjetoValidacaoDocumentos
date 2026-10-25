@@ -48,8 +48,21 @@ tesseract:
   datapath: ${TESSDATA_PREFIX:tessdata}
   language: ${TESSERACT_LANGUAGE:por}
 
+ocr:
+  tesseract:
+    oem: 1 # OEM_LSTM_ONLY
+    psm: 3 # PSM_AUTO
+  file:
+    max-file-size-mb: 10
+    pdf-dpi: 300
+  preprocessing:
+    debug:
+      enabled: ${OCR_DEBUG_ENABLED:false}
+      output-dir: ${OCR_DEBUG_DIR:target/ocr-debug}
+
 springdoc:
   api-docs:
     path: /v3/api-docs
   swagger-ui:
     path: /swagger-ui.html
+

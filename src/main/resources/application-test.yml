@@ -17,3 +17,16 @@ spring:
 tesseract:
   datapath: tessdata
   language: por
+
+ocr:
+  tesseract:
+    oem: 1
+    psm: 3
+  file:
+    max-file-size-mb: 10
+    pdf-dpi: 300
+  preprocessing:
+    debug:
+      enabled: false
+      output-dir: target/ocr-debug
+

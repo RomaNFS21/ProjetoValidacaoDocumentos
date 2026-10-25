@@ -1,3 +1,4 @@
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\config\OpenCvConfig.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\domain\dto\CriteriosValidacao.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\domain\dto\DadosDocumento.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\domain\dto\ValidacaoResponseDTO.java
@@ -6,7 +7,13 @@ D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\co
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\domain\entity\Validacao.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\domain\enums\StatusValidacao.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\domain\enums\TipoDocumento.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\exception\FileProcessingException.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\exception\OcrProcessingException.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\repository\DadosExtraidosRepository.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\repository\DocumentoRepository.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\repository\ValidacaoRepository.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\service\DocumentFileService.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\service\ImagePreprocessingService.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\service\OcrExtractionService.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\util\OpenCvImageUtils.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\ValidacaoDocumentosApplication.java
