@@ -135,7 +135,7 @@ public class DocumentController {
             @Parameter(description = "Filtro opcional pelo status da validação (APROVADO / REPROVADO)")
             @RequestParam(value = "status", required = false) StatusValidacao status,
             @Parameter(hidden = true)
-            @PageableDefault(sort = "dataUpload", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(sort = "dataCriacao", direction = Sort.Direction.DESC) Pageable pageable) {
 
         Page<ValidacaoResponseDTO> page = orchestrator.listarEnvios(status, pageable);
         return ResponseEntity.ok(page);

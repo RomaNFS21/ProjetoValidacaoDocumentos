@@ -1,0 +1,4 @@
+com\portodigital\validacaodocumentos\config\OpenCvConfig.class
+com\portodigital\validacaodocumentos\controller\DocumentController.class
+com\portodigital\validacaodocumentos\ValidacaoDocumentosApplication.class
+com\portodigital\validacaodocumentos\config\OpenApiConfig.class

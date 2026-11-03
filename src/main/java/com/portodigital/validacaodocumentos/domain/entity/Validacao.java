@@ -2,63 +2,68 @@ package com.portodigital.validacaodocumentos.domain.entity;
 
 import com.portodigital.validacaodocumentos.domain.enums.StatusValidacao;
 import jakarta.persistence.*;
-import java.time.OffsetDateTime;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * Entidade JPA que armazena o resultado final do motor de validação de regras de negócio.
+ */
 @Entity
 @Table(name = "validacoes")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Validacao {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
+    @EqualsAndHashCode.Include
     private UUID id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "documento_id", nullable = false)
+    @JoinColumn(name = "documento_id", nullable = false, unique = true)
     private Documento documento;
 
+    @Column(name = "documento_id", insertable = false, updatable = false)
+    private UUID documentoId;
+
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Column(name = "status", nullable = false, length = 30)
     private StatusValidacao status;
 
-    @Column(name = "motivo_reprovacao", columnDefinition = "TEXT")
-    private String motivoReprovacao;
+    @Column(name = "mensagem", columnDefinition = "TEXT")
+    private String mensagem;
 
-    @Column(name = "legivel", nullable = false)
-    private boolean legivel;
+    @Embedded
+    @Builder.Default
+    private CriteriosValidacaoEmbeddable criterios = new CriteriosValidacaoEmbeddable();
 
-    @Column(name = "cpf_valido", nullable = false)
-    private boolean cpfValido;
-
-    @Column(name = "endereco_valido", nullable = false)
-    private boolean enderecoValido;
-
-    @Column(name = "emissao_recente", nullable = false)
-    private boolean emissaoRecente;
-
-    @Column(name = "data_validacao", nullable = false, updatable = false)
-    private OffsetDateTime dataValidacao;
-
-    public Validacao() {
-    }
-
-    public Validacao(Documento documento, StatusValidacao status, String motivoReprovacao,
-                     boolean legivel, boolean cpfValido, boolean enderecoValido, boolean emissaoRecente) {
-        this.documento = documento;
-        this.status = status;
-        this.motivoReprovacao = motivoReprovacao;
-        this.legivel = legivel;
-        this.cpfValido = cpfValido;
-        this.enderecoValido = enderecoValido;
-        this.emissaoRecente = emissaoRecente;
-        this.dataValidacao = OffsetDateTime.now();
-    }
+    @Column(name = "data_processamento", nullable = false, updatable = false)
+    private LocalDateTime dataProcessamento;
 
     @PrePersist
     public void prePersist() {
-        if (this.dataValidacao == null) {
-            this.dataValidacao = OffsetDateTime.now();
+        if (this.dataProcessamento == null) {
+            this.dataProcessamento = LocalDateTime.now();
         }
+        if (this.documento != null && this.documentoId == null) {
+            this.documentoId = this.documento.getId();
+        }
+    }
+
+    public Validacao(Documento documento, StatusValidacao status, String mensagem, CriteriosValidacaoEmbeddable criterios) {
+        this.documento = documento;
+        this.documentoId = documento != null ? documento.getId() : null;
+        this.status = status;
+        this.mensagem = mensagem;
+        this.criterios = criterios != null ? criterios : new CriteriosValidacaoEmbeddable();
+        this.dataProcessamento = LocalDateTime.now();
     }
 
     public UUID getId() {
@@ -75,6 +80,17 @@ public class Validacao {
 
     public void setDocumento(Documento documento) {
         this.documento = documento;
+        if (documento != null) {
+            this.documentoId = documento.getId();
+        }
+    }
+
+    public UUID getDocumentoId() {
+        return documentoId != null ? documentoId : (documento != null ? documento.getId() : null);
+    }
+
+    public void setDocumentoId(UUID documentoId) {
+        this.documentoId = documentoId;
     }
 
     public StatusValidacao getStatus() {
@@ -85,51 +101,64 @@ public class Validacao {
         this.status = status;
     }
 
+    public String getMensagem() {
+        return mensagem;
+    }
+
+    public void setMensagem(String mensagem) {
+        this.mensagem = mensagem;
+    }
+
+    public CriteriosValidacaoEmbeddable getCriterios() {
+        return criterios;
+    }
+
+    public void setCriterios(CriteriosValidacaoEmbeddable criterios) {
+        this.criterios = criterios;
+    }
+
+    public LocalDateTime getDataProcessamento() {
+        return dataProcessamento;
+    }
+
+    public void setDataProcessamento(LocalDateTime dataProcessamento) {
+        this.dataProcessamento = dataProcessamento;
+    }
+
     public String getMotivoReprovacao() {
-        return motivoReprovacao;
+        return this.mensagem;
     }
 
     public void setMotivoReprovacao(String motivoReprovacao) {
-        this.motivoReprovacao = motivoReprovacao;
+        this.mensagem = motivoReprovacao;
     }
 
     public boolean isLegivel() {
-        return legivel;
-    }
-
-    public void setLegivel(boolean legivel) {
-        this.legivel = legivel;
+        return this.criterios != null && this.criterios.isDocumentoLegivel();
     }
 
     public boolean isCpfValido() {
-        return cpfValido;
-    }
-
-    public void setCpfValido(boolean cpfValido) {
-        this.cpfValido = cpfValido;
+        return this.criterios != null && this.criterios.isCpfValido();
     }
 
     public boolean isEnderecoValido() {
-        return enderecoValido;
-    }
-
-    public void setEnderecoValido(boolean enderecoValido) {
-        this.enderecoValido = enderecoValido;
+        return this.criterios != null && this.criterios.isEnderecoEncontrado();
     }
 
     public boolean isEmissaoRecente() {
-        return emissaoRecente;
+        return this.criterios != null && this.criterios.isEmissaoMenor90Dias();
     }
 
-    public void setEmissaoRecente(boolean emissaoRecente) {
-        this.emissaoRecente = emissaoRecente;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Validacao validacao = (Validacao) o;
+        return Objects.equals(id, validacao.id);
     }
 
-    public OffsetDateTime getDataValidacao() {
-        return dataValidacao;
-    }
-
-    public void setDataValidacao(OffsetDateTime dataValidacao) {
-        this.dataValidacao = dataValidacao;
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
     }
 }

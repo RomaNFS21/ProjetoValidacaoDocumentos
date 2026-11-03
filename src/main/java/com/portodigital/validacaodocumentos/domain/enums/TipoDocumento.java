@@ -1,5 +1,10 @@
 package com.portodigital.validacaodocumentos.domain.enums;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+@Getter
+@AllArgsConstructor
 public enum TipoDocumento {
     COMPROVANTE_RESIDENCIA("Comprovante de Residência"),
     RG("Registro Geral (RG)"),

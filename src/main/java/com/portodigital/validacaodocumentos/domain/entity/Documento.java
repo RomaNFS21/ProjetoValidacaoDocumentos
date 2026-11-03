@@ -1,36 +1,48 @@
 package com.portodigital.validacaodocumentos.domain.entity;
 
+import com.portodigital.validacaodocumentos.domain.enums.StatusValidacao;
 import com.portodigital.validacaodocumentos.domain.enums.TipoDocumento;
 import jakarta.persistence.*;
-import java.time.OffsetDateTime;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * Entidade JPA raiz (Aggregate Root) que representa o documento submetido ao pipeline de validação.
+ */
 @Entity
 @Table(name = "documentos")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Documento {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
+    @EqualsAndHashCode.Include
     private UUID id;
 
-    @Column(name = "nome_arquivo_original", nullable = false)
-    private String nomeArquivoOriginal;
-
-    @Column(name = "content_type", nullable = false)
-    private String contentType;
-
-    @Column(name = "tamanho_bytes", nullable = false)
-    private Long tamanhoBytes;
+    @Column(name = "nome_arquivo", nullable = false)
+    private String nomeArquivo;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "tipo_documento", nullable = false)
+    @Column(name = "tipo_documento", nullable = false, length = 50)
     private TipoDocumento tipoDocumento;
 
-    @Column(name = "texto_bruto_ocr", columnDefinition = "TEXT")
-    private String textoBrutoOcr;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 30)
+    private StatusValidacao status;
 
-    @Column(name = "data_upload", nullable = false, updatable = false)
-    private OffsetDateTime dataUpload;
+    @Column(name = "data_criacao", nullable = false, updatable = false)
+    private LocalDateTime dataCriacao;
+
+    @OneToOne(mappedBy = "documento", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private TextoBrutoOcr textoBrutoOcr;
 
     @OneToOne(mappedBy = "documento", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private DadosExtraidos dadosExtraidos;
@@ -38,24 +50,31 @@ public class Documento {
     @OneToOne(mappedBy = "documento", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private Validacao validacao;
 
-    public Documento() {
-    }
-
-    public Documento(String nomeArquivoOriginal, String contentType, Long tamanhoBytes, TipoDocumento tipoDocumento) {
-        this.nomeArquivoOriginal = nomeArquivoOriginal;
-        this.contentType = contentType;
-        this.tamanhoBytes = tamanhoBytes;
-        this.tipoDocumento = tipoDocumento;
-        this.dataUpload = OffsetDateTime.now();
-    }
-
     @PrePersist
     public void prePersist() {
-        if (this.dataUpload == null) {
-            this.dataUpload = OffsetDateTime.now();
+        if (this.dataCriacao == null) {
+            this.dataCriacao = LocalDateTime.now();
+        }
+        if (this.status == null) {
+            this.status = StatusValidacao.EM_PROCESSAMENTO;
         }
     }
 
+    public Documento(String nomeArquivo, TipoDocumento tipoDocumento) {
+        this.nomeArquivo = nomeArquivo;
+        this.tipoDocumento = tipoDocumento;
+        this.status = StatusValidacao.EM_PROCESSAMENTO;
+        this.dataCriacao = LocalDateTime.now();
+    }
+
+    public Documento(String nomeArquivo, TipoDocumento tipoDocumento, StatusValidacao status) {
+        this.nomeArquivo = nomeArquivo;
+        this.tipoDocumento = tipoDocumento;
+        this.status = status != null ? status : StatusValidacao.EM_PROCESSAMENTO;
+        this.dataCriacao = LocalDateTime.now();
+    }
+
+    // Getters e Setters explícitos garantindo compatibilidade total
     public UUID getId() {
         return id;
     }
@@ -64,28 +83,12 @@ public class Documento {
         this.id = id;
     }
 
-    public String getNomeArquivoOriginal() {
-        return nomeArquivoOriginal;
+    public String getNomeArquivo() {
+        return nomeArquivo;
     }
 
-    public void setNomeArquivoOriginal(String nomeArquivoOriginal) {
-        this.nomeArquivoOriginal = nomeArquivoOriginal;
-    }
-
-    public String getContentType() {
-        return contentType;
-    }
-
-    public void setContentType(String contentType) {
-        this.contentType = contentType;
-    }
-
-    public Long getTamanhoBytes() {
-        return tamanhoBytes;
-    }
-
-    public void setTamanhoBytes(Long tamanhoBytes) {
-        this.tamanhoBytes = tamanhoBytes;
+    public void setNomeArquivo(String nomeArquivo) {
+        this.nomeArquivo = nomeArquivo;
     }
 
     public TipoDocumento getTipoDocumento() {
@@ -96,20 +99,32 @@ public class Documento {
         this.tipoDocumento = tipoDocumento;
     }
 
-    public String getTextoBrutoOcr() {
+    public StatusValidacao getStatus() {
+        return status;
+    }
+
+    public void setStatus(StatusValidacao status) {
+        this.status = status;
+    }
+
+    public LocalDateTime getDataCriacao() {
+        return dataCriacao;
+    }
+
+    public void setDataCriacao(LocalDateTime dataCriacao) {
+        this.dataCriacao = dataCriacao;
+    }
+
+    public TextoBrutoOcr getTextoBrutoOcr() {
         return textoBrutoOcr;
     }
 
-    public void setTextoBrutoOcr(String textoBrutoOcr) {
+    public void setTextoBrutoOcr(TextoBrutoOcr textoBrutoOcr) {
         this.textoBrutoOcr = textoBrutoOcr;
-    }
-
-    public OffsetDateTime getDataUpload() {
-        return dataUpload;
-    }
-
-    public void setDataUpload(OffsetDateTime dataUpload) {
-        this.dataUpload = dataUpload;
+        if (textoBrutoOcr != null) {
+            textoBrutoOcr.setDocumento(this);
+            textoBrutoOcr.setDocumentoId(this.id);
+        }
     }
 
     public DadosExtraidos getDadosExtraidos() {
@@ -120,6 +135,7 @@ public class Documento {
         this.dadosExtraidos = dadosExtraidos;
         if (dadosExtraidos != null) {
             dadosExtraidos.setDocumento(this);
+            dadosExtraidos.setDocumentoId(this.id);
         }
     }
 
@@ -131,6 +147,31 @@ public class Documento {
         this.validacao = validacao;
         if (validacao != null) {
             validacao.setDocumento(this);
+            validacao.setDocumentoId(this.id);
+            if (validacao.getStatus() != null) {
+                this.status = validacao.getStatus();
+            }
         }
+    }
+
+    public String getNomeArquivoOriginal() {
+        return this.nomeArquivo;
+    }
+
+    public void setNomeArquivoOriginal(String nomeArquivoOriginal) {
+        this.nomeArquivo = nomeArquivoOriginal;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Documento documento = (Documento) o;
+        return Objects.equals(id, documento.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
     }
 }
