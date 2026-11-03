@@ -1,5 +1,7 @@
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\test\java\com\portodigital\validacaodocumentos\controller\DocumentControllerIntegrationTest.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\test\java\com\portodigital\validacaodocumentos\service\DocumentFileServiceTest.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\test\java\com\portodigital\validacaodocumentos\service\DocumentPipelineIntegrationTest.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\test\java\com\portodigital\validacaodocumentos\service\DocumentValidationServiceTest.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\test\java\com\portodigital\validacaodocumentos\service\ImagePreprocessingServiceTest.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\test\java\com\portodigital\validacaodocumentos\service\OcrExtractionServiceTest.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\test\java\com\portodigital\validacaodocumentos\testutil\TestDocumentFactory.java

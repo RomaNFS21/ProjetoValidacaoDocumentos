@@ -1,18 +1,31 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    # H2 em memória com compatibilidade PostgreSQL para testes de integração
+    # NON_KEYWORDS=VALUE evita colisão com palavra reservada H2 "VALUE"
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL;NON_KEYWORDS=VALUE
     username: sa
-    password: 
+    password:
     driver-class-name: org.h2.Driver
+
   jpa:
     hibernate:
+      # Hibernate cria e destrói as tabelas automaticamente via entidades @Entity
       ddl-auto: create-drop
     show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        # Dialeto explícito para H2 em modo test
+        dialect: org.hibernate.dialect.H2Dialect
+
   flyway:
+    # Desabilitado no perfil test: Hibernate gere o schema via ddl-auto
     enabled: false
+
   ai:
     openai:
-      api-key: test-key
+      # Chave fictícia para testes: o ChatModel é mockado via @MockBean nos testes
+      api-key: test-key-not-used
 
 tesseract:
   datapath: tessdata
@@ -29,4 +42,3 @@ ocr:
     debug:
       enabled: false
       output-dir: target/ocr-debug
-
