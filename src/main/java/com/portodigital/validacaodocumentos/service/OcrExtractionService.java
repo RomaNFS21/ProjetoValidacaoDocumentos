@@ -28,7 +28,7 @@ import java.nio.file.Paths;
  * - Validação proativa de diretório tessdata e arquivos .traineddata.
  */
 @Service
-public class OcrExtractionService {
+public class OcrExtractionService implements TesseractOcrService {
 
     private static final Logger log = LoggerFactory.getLogger(OcrExtractionService.class);
 
@@ -61,6 +61,11 @@ public class OcrExtractionService {
         this.tesseract = createTesseractInstance();
         log.info("Tesseract OCR inicializado com sucesso. Idioma: '{}', Datapath: '{}', OEM: {}, PSM: {}",
                 this.language, this.resolvedDatapath, this.oem, this.psm);
+    }
+
+    @Override
+    public String extrairTexto(BufferedImage imagem) {
+        return extractText(imagem);
     }
 
     /**

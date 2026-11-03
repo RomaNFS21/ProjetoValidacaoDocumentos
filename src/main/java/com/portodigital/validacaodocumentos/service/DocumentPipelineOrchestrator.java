@@ -2,8 +2,8 @@ package com.portodigital.validacaodocumentos.service;
 
 import com.portodigital.validacaodocumentos.domain.dto.CriteriosValidacao;
 import com.portodigital.validacaodocumentos.domain.dto.DadosDocumento;
+import com.portodigital.validacaodocumentos.domain.dto.DadosExtraidosDTO;
 import com.portodigital.validacaodocumentos.domain.dto.DocumentoRespostaDTO;
-import com.portodigital.validacaodocumentos.domain.dto.ValidacaoResponseDTO;
 import com.portodigital.validacaodocumentos.domain.dto.ValidationResult;
 import com.portodigital.validacaodocumentos.domain.entity.CriteriosValidacaoEmbeddable;
 import com.portodigital.validacaodocumentos.domain.entity.DadosExtraidos;
@@ -29,17 +29,13 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.awt.image.BufferedImage;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Orquestrador central do pipeline de validação de documentos (Facade Pattern).
- * Executa todas as etapas desde a recepção multipart, persistência inicial,
- * tratamento de imagem via OpenCV, OCR Tess4J, estruturação com Spring AI,
- * validação das regras de negócio em Java puro e persistência transacional completa no PostgreSQL.
+ * Orquestrador central do pipeline de validação documental (Facade Pattern).
+ * Coordena as etapas de persistência, visão computacional, OCR, IA generativa e motor de regras de negócio.
  */
 @Service
 public class DocumentPipelineOrchestrator {
@@ -62,32 +58,31 @@ public class DocumentPipelineOrchestrator {
             ".pdf"
     );
 
-    private final DocumentFileService documentFileService;
-    private final ImagePreprocessingService imagePreprocessingService;
-    private final OcrExtractionService ocrExtractionService;
-    private final DocumentAiService documentAiService;
-    private final DocumentValidationService documentValidationService;
+    // Serviços secundários do pipeline
+    private final OpenCvService openCvService;
+    private final TesseractOcrService tesseractOcrService;
+    private final SpringAiService springAiService;
+    private final RegrasValidacaoService regrasValidacaoService;
 
+    // Repositórios JPA para persistência de todo o ciclo de vida
     private final DocumentoRepository documentoRepository;
     private final TextoBrutoOcrRepository textoBrutoOcrRepository;
     private final DadosExtraidosRepository dadosExtraidosRepository;
     private final ValidacaoRepository validacaoRepository;
 
     public DocumentPipelineOrchestrator(
-            DocumentFileService documentFileService,
-            ImagePreprocessingService imagePreprocessingService,
-            OcrExtractionService ocrExtractionService,
-            DocumentAiService documentAiService,
-            DocumentValidationService documentValidationService,
+            OpenCvService openCvService,
+            TesseractOcrService tesseractOcrService,
+            SpringAiService springAiService,
+            RegrasValidacaoService regrasValidacaoService,
             DocumentoRepository documentoRepository,
             TextoBrutoOcrRepository textoBrutoOcrRepository,
             DadosExtraidosRepository dadosExtraidosRepository,
             ValidacaoRepository validacaoRepository) {
-        this.documentFileService = documentFileService;
-        this.imagePreprocessingService = imagePreprocessingService;
-        this.ocrExtractionService = ocrExtractionService;
-        this.documentAiService = documentAiService;
-        this.documentValidationService = documentValidationService;
+        this.openCvService = openCvService;
+        this.tesseractOcrService = tesseractOcrService;
+        this.springAiService = springAiService;
+        this.regrasValidacaoService = regrasValidacaoService;
         this.documentoRepository = documentoRepository;
         this.textoBrutoOcrRepository = textoBrutoOcrRepository;
         this.dadosExtraidosRepository = dadosExtraidosRepository;
@@ -95,46 +90,44 @@ public class DocumentPipelineOrchestrator {
     }
 
     /**
-     * Executa o pipeline completo de validação do documento.
+     * Executa o pipeline completo de validação do documento em uma única transação atômica.
      *
-     * @param file          Arquivo enviado via multipart (PNG, JPEG, PDF)
-     * @param tipoDocumento Tipo de documento (padrão COMPROVANTE_RESIDENCIA)
-     * @return {@link ValidacaoResponseDTO} consolidado com status, critérios e dados extraídos
+     * @param file          Arquivo binário recebido via Multipart (PNG, JPEG ou PDF)
+     * @param tipo          Tipo de documento submetido (padrão COMPROVANTE_RESIDENCIA)
+     * @return {@link DocumentoRespostaDTO} DTO consolidado com dados extraídos, critérios e status
      */
     @Transactional
-    public ValidacaoResponseDTO processarDocumento(MultipartFile file, TipoDocumento tipoDocumento) {
+    public DocumentoRespostaDTO processarDocumento(MultipartFile file, TipoDocumento tipo) {
         log.info("Iniciando orquestração do pipeline para arquivo: '{}', tamanho: {} bytes",
                 file != null ? file.getOriginalFilename() : "null",
                 file != null ? file.getSize() : 0);
 
-        // 1. Validações preliminares do arquivo
+        // Validação preliminar de integridade, limites e formato
         validarArquivo(file);
+        TipoDocumento tipoDoc = (tipo != null) ? tipo : TipoDocumento.COMPROVANTE_RESIDENCIA;
 
-        TipoDocumento tipo = (tipoDocumento != null) ? tipoDocumento : TipoDocumento.COMPROVANTE_RESIDENCIA;
-
-        // 2. Salva o registro inicial na tabela 'documentos' com status EM_PROCESSAMENTO
-        Documento documento = new Documento(file.getOriginalFilename(), tipo);
+        // 1. Salva o registro inicial na tabela 'documentos' (Status: EM_PROCESSAMENTO)
+        Documento documento = new Documento(file.getOriginalFilename(), tipoDoc, StatusValidacao.EM_PROCESSAMENTO);
         documento = documentoRepository.save(documento);
-        log.info("Etapa 2 concluída: Registro inicial persistido com ID: {}", documento.getId());
+        log.info("[Etapa 1/9] Registro inicial persistido com ID: {} e Status: {}", documento.getId(), documento.getStatus());
 
-        // 3. Conversão para imagem e pré-processamento via OpenCV
-        BufferedImage originalImage = documentFileService.convertToImage(file);
-        BufferedImage preprocessedImage = imagePreprocessingService.preprocessImageToBufferedImage(originalImage);
-        log.info("Etapa 3 concluída: Pré-processamento OpenCV finalizado");
+        // 2. Executa a conversão e pré-processamento via OpenCV
+        BufferedImage imagemProcessada = openCvService.preprocessar(file);
+        log.info("[Etapa 2/9] Pré-processamento OpenCV concluído com sucesso");
 
-        // 4. Extração de texto via Tesseract OCR e persistência na tabela 'texto_bruto_ocr'
-        String textoBrutoOcr = ocrExtractionService.extractText(preprocessedImage);
-        TextoBrutoOcr ocrEntity = new TextoBrutoOcr(documento, textoBrutoOcr);
-        ocrEntity = textoBrutoOcrRepository.save(ocrEntity);
-        documento.setTextoBrutoOcr(ocrEntity);
-        log.info("Etapa 4 concluída: Texto bruto extraído pelo OCR ({} caracteres) e persistido em 'texto_bruto_ocr'",
+        // 3. Executa a extração de texto via Tesseract OCR e salva/atualiza na tabela 'texto_bruto_ocr'
+        String textoBrutoOcr = tesseractOcrService.extrairTexto(imagemProcessada);
+        TextoBrutoOcr textoOcrEntity = new TextoBrutoOcr(documento, textoBrutoOcr);
+        textoOcrEntity = textoBrutoOcrRepository.save(textoOcrEntity);
+        documento.setTextoBrutoOcr(textoOcrEntity);
+        log.info("[Etapa 3/9] OCR finalizado ({} caracteres). Registro salvo em 'texto_bruto_ocr'",
                 textoBrutoOcr != null ? textoBrutoOcr.length() : 0);
 
-        // 5. Envia o texto para o Spring AI e obtém o record DadosDocumento
-        DadosDocumento dadosDocumento = documentAiService.extractDocumentData(textoBrutoOcr);
-        log.info("Etapa 5 concluída: Estruturação com Spring AI finalizada");
+        // 4. Envia o texto ao Spring AI e obtém o record DadosDocumento
+        DadosDocumento dadosDocumento = springAiService.extrairDados(textoBrutoOcr);
+        log.info("[Etapa 4/9] Extração estruturada via Spring AI finalizada");
 
-        // 6. Salva os campos extraídos na tabela 'dados_extraidos'
+        // 5. Salva os campos extraídos na tabela 'dados_extraidos'
         DadosExtraidos dadosExtraidos = new DadosExtraidos(
                 documento,
                 dadosDocumento.nome(),
@@ -146,13 +139,13 @@ public class DocumentPipelineOrchestrator {
         );
         dadosExtraidos = dadosExtraidosRepository.save(dadosExtraidos);
         documento.setDadosExtraidos(dadosExtraidos);
-        log.info("Etapa 6 concluída: Dados extraídos persistidos com ID: {}", dadosExtraidos.getId());
+        log.info("[Etapa 5/9] Campos extraídos persistidos em 'dados_extraidos' com ID: {}", dadosExtraidos.getId());
 
-        // 7. Executa o motor de validação de regras de negócio em Java puro
-        ValidationResult validationResult = documentValidationService.validate(dadosDocumento, textoBrutoOcr);
-        log.info("Etapa 7 concluída: Motor de regras executado. Status: {}", validationResult.status());
+        // 6. Executa o motor de validação de regras de negócio
+        ValidationResult validationResult = regrasValidacaoService.validar(dadosDocumento, textoBrutoOcr);
+        log.info("[Etapa 6/9] Motor de regras executado. Resultado: {}", validationResult.status());
 
-        // 8. Salva o resultado final na tabela 'validacoes' e atualiza o status do documento
+        // 7. Salva o resultado final na tabela 'validacoes' (Status APROVADO ou REPROVADO + mensagem + critérios)
         CriteriosValidacaoEmbeddable criteriosEmbeddable = CriteriosValidacaoEmbeddable.builder()
                 .cpfEncontrado(validationResult.criterios().cpfEncontrado())
                 .cpfValido(validationResult.criterios().cpfValido())
@@ -169,45 +162,46 @@ public class DocumentPipelineOrchestrator {
         );
         validacao = validacaoRepository.save(validacao);
         documento.setValidacao(validacao);
+        log.info("[Etapa 7/9] Validação persistida com ID: {} e Status: {}", validacao.getId(), validacao.getStatus());
+
+        // 8. Atualiza o status do documento em 'documentos'
         documento.setStatus(validationResult.status());
-        documentoRepository.save(documento);
-        log.info("Etapa 8 concluída: Validação final persistida com ID: {} e status: {}", validacao.getId(), documento.getStatus());
+        documento = documentoRepository.save(documento);
+        log.info("[Etapa 8/9] Status do documento atualizado em 'documentos' para: {}", documento.getStatus());
 
-        // 9. Retorna o DTO consolidado para o cliente
-        OffsetDateTime dataProcessamentoOffset = validacao.getDataProcessamento() != null
-                ? validacao.getDataProcessamento().atZone(ZoneId.systemDefault()).toOffsetDateTime()
-                : OffsetDateTime.now();
+        // 9. Monta e retorna o DocumentoRespostaDTO consolidado
+        CriteriosValidacao criteriosDto = validationResult.criterios();
+        DadosExtraidosDTO dadosDto = new DadosExtraidosDTO(
+                dadosDocumento.nome(),
+                dadosDocumento.cpf(),
+                dadosDocumento.endereco(),
+                dadosDocumento.cidade(),
+                dadosDocumento.estado(),
+                dadosDocumento.dataEmissao()
+        );
 
-        ValidacaoResponseDTO responseDTO = toDto(
-                documento,
-                dadosDocumento,
-                validationResult.status(),
+        DocumentoRespostaDTO responseDTO = new DocumentoRespostaDTO(
+                documento.getId(),
+                documento.getNomeArquivo(),
+                documento.getTipoDocumento(),
+                documento.getStatus(),
                 validationResult.mensagem(),
                 validationResult.motivoReprovacao(),
-                validationResult.criterios(),
-                dataProcessamentoOffset
+                criteriosDto,
+                dadosDto,
+                validacao.getDataProcessamento()
         );
-        log.info("Etapa 9 concluída: Resposta compilada com sucesso para documento {}", documento.getId());
+
+        log.info("[Etapa 9/9] Pipeline finalizado com sucesso. Documento: {}, Status: {}", documento.getId(), documento.getStatus());
         return responseDTO;
     }
 
     /**
-     * Consulta os detalhes de um documento já processado por seu identificador único.
+     * Consulta os detalhes de um documento já processado por seu UUID.
      */
     @Transactional(readOnly = true)
-    public ValidacaoResponseDTO buscarPorId(UUID id) {
+    public DocumentoRespostaDTO buscarPorId(UUID id) {
         log.info("Buscando detalhes do documento por ID: {}", id);
-        Documento documento = documentoRepository.findWithDetailsById(id)
-                .orElseThrow(() -> new DocumentNotFoundException("Documento não encontrado com o identificador: " + id));
-        return toDto(documento);
-    }
-
-    /**
-     * Consulta os detalhes de um documento retornando o DTO oficial {@link DocumentoRespostaDTO}.
-     */
-    @Transactional(readOnly = true)
-    public DocumentoRespostaDTO buscarRespostaDtoPorId(UUID id) {
-        log.info("Buscando DocumentoRespostaDTO por ID: {}", id);
         Documento documento = documentoRepository.findWithDetailsById(id)
                 .orElseThrow(() -> new DocumentNotFoundException("Documento não encontrado com o identificador: " + id));
         return DocumentoRespostaDTO.fromEntity(documento);
@@ -217,18 +211,8 @@ public class DocumentPipelineOrchestrator {
      * Lista o histórico de envios com paginação e filtro opcional por status.
      */
     @Transactional(readOnly = true)
-    public Page<ValidacaoResponseDTO> listarEnvios(StatusValidacao status, Pageable pageable) {
+    public Page<DocumentoRespostaDTO> listarEnvios(StatusValidacao status, Pageable pageable) {
         log.info("Listando histórico de envios. Filtro status: {}, Paginação: {}", status, pageable);
-        return documentoRepository.findAllWithFilter(status, pageable)
-                .map(this::toDto);
-    }
-
-    /**
-     * Lista o histórico de envios retornando o DTO oficial {@link DocumentoRespostaDTO}.
-     */
-    @Transactional(readOnly = true)
-    public Page<DocumentoRespostaDTO> listarEnviosRespostaDto(StatusValidacao status, Pageable pageable) {
-        log.info("Listando DocumentoRespostaDTO. Filtro status: {}, Paginação: {}", status, pageable);
         Page<Documento> page = (status != null)
                 ? documentoRepository.findByStatus(status, pageable)
                 : documentoRepository.findAll(pageable);
@@ -236,7 +220,7 @@ public class DocumentPipelineOrchestrator {
     }
 
     /**
-     * Valida integridade básica, formato e limites de tamanho do arquivo enviado.
+     * Valida integridade, formato suportado e limite máximo de tamanho de arquivo (10 MB).
      */
     private void validarArquivo(MultipartFile file) {
         if (file == null || file.isEmpty()) {
@@ -263,74 +247,5 @@ public class DocumentPipelineOrchestrator {
                     "Formato de arquivo não suportado ('" + contentType + "'). São permitidos apenas arquivos PNG, JPEG ou PDF."
             );
         }
-    }
-
-    /**
-     * Converte entidade Documento completa para o DTO de resposta da API.
-     */
-    public ValidacaoResponseDTO toDto(Documento doc) {
-        DadosExtraidos de = doc.getDadosExtraidos();
-        Validacao v = doc.getValidacao();
-
-        DadosDocumento dados = (de != null)
-                ? new DadosDocumento(de.getNome(), de.getCpf(), de.getEndereco(), de.getCidade(), de.getEstado(), de.getDataEmissao())
-                : null;
-
-        CriteriosValidacao criterios = (v != null && v.getCriterios() != null)
-                ? new CriteriosValidacao(
-                        v.getCriterios().isCpfEncontrado(),
-                        v.getCriterios().isCpfValido(),
-                        v.getCriterios().isEnderecoEncontrado(),
-                        v.getCriterios().isDocumentoLegivel(),
-                        v.getCriterios().isEmissaoMenor90Dias()
-                )
-                : null;
-
-        StatusValidacao status = doc.getStatus();
-        String motivo = (v != null) ? v.getMensagem() : null;
-        String mensagem = (status == StatusValidacao.APROVADO)
-                ? "Documento validado com sucesso."
-                : (status == StatusValidacao.REPROVADO)
-                        ? "Documento reprovado nas regras de validação."
-                        : "Documento em processamento.";
-
-        OffsetDateTime dataProcessamento = (v != null && v.getDataProcessamento() != null)
-                ? v.getDataProcessamento().atZone(ZoneId.systemDefault()).toOffsetDateTime()
-                : (doc.getDataCriacao() != null
-                    ? doc.getDataCriacao().atZone(ZoneId.systemDefault()).toOffsetDateTime()
-                    : OffsetDateTime.now());
-
-        return new ValidacaoResponseDTO(
-                doc.getId(),
-                doc.getNomeArquivo(),
-                doc.getTipoDocumento(),
-                status,
-                mensagem,
-                motivo,
-                criterios,
-                dados,
-                dataProcessamento
-        );
-    }
-
-    private ValidacaoResponseDTO toDto(
-            Documento doc,
-            DadosDocumento dados,
-            StatusValidacao status,
-            String mensagem,
-            String motivoReprovacao,
-            CriteriosValidacao criterios,
-            OffsetDateTime dataProcessamento) {
-        return new ValidacaoResponseDTO(
-                doc.getId(),
-                doc.getNomeArquivo(),
-                doc.getTipoDocumento(),
-                status,
-                mensagem,
-                motivoReprovacao,
-                criterios,
-                dados,
-                dataProcessamento != null ? dataProcessamento : OffsetDateTime.now()
-        );
     }
 }

@@ -18,11 +18,24 @@ public record DocumentoRespostaDTO(
     TipoDocumento tipoDocumento,
     StatusValidacao status,
     String mensagem,
+    String motivoReprovacao,
     CriteriosValidacao criterios,
     DadosExtraidosDTO dadosExtraidos,
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     LocalDateTime dataProcessamento
 ) {
+    public DocumentoRespostaDTO(
+            UUID documentoId,
+            String nomeArquivo,
+            TipoDocumento tipoDocumento,
+            StatusValidacao status,
+            String mensagem,
+            CriteriosValidacao criterios,
+            DadosExtraidosDTO dadosExtraidos,
+            LocalDateTime dataProcessamento) {
+        this(documentoId, nomeArquivo, tipoDocumento, status, mensagem, null, criterios, dadosExtraidos, dataProcessamento);
+    }
+
     /**
      * Constrói o DTO a partir da entidade JPA {@link Documento} com suas associações carregadas.
      */
@@ -47,6 +60,7 @@ public record DocumentoRespostaDTO(
 
         DadosExtraidosDTO dadosDto = DadosExtraidosDTO.fromEntity(documento.getDadosExtraidos());
 
+        String motivo = (validacao != null) ? validacao.getMensagem() : null;
         String mensagem = (validacao != null && validacao.getMensagem() != null)
                 ? validacao.getMensagem()
                 : (documento.getStatus() == StatusValidacao.APROVADO
@@ -65,10 +79,10 @@ public record DocumentoRespostaDTO(
             documento.getTipoDocumento(),
             documento.getStatus(),
             mensagem,
+            motivo,
             criteriosDto,
             dadosDto,
             dataProc
         );
     }
 }
-

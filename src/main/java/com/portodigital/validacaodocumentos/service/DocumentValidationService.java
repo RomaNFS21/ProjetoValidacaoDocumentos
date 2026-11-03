@@ -21,7 +21,7 @@ import java.util.List;
  * 4. Recência Temporal (< 90 dias, não nula, não futura)
  */
 @Service
-public class DocumentValidationService {
+public class DocumentValidationService implements RegrasValidacaoService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentValidationService.class);
 
@@ -51,6 +51,11 @@ public class DocumentValidationService {
                 new LegibilidadeValidationRule(),
                 new RecenciaTemporalValidationRule()
         );
+    }
+
+    @Override
+    public ValidationResult validar(DadosDocumento dados, String textoOcr) {
+        return validate(dados, textoOcr);
     }
 
     /**

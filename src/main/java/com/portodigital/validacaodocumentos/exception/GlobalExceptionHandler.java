@@ -16,20 +16,7 @@ import java.time.OffsetDateTime;
 import java.util.stream.Collectors;
 
 /**
- * Tratamento Global de Erros seguindo a especificação RFC 7807 (Problem Details
- * for HTTP APIs).
- *
- * <p>
- * Todos os erros retornam o payload padronizado {@link ProblemDetail} com os
- * campos:
- * <ul>
- * <li>{@code type} – URI que identifica a classe do problema</li>
- * <li>{@code title} – Rótulo legível por humanos</li>
- * <li>{@code status} – Código HTTP numérico</li>
- * <li>{@code detail} – Descrição específica desta ocorrência</li>
- * <li>{@code instance} – URI da requisição que gerou o erro</li>
- * <li>{@code timestamp} – Instante UTC da ocorrência</li>
- * </ul>
+ * Manipulador Global de Exceções da API REST seguindo a especificação RFC 7807 (Problem Details for HTTP APIs).
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -37,34 +24,83 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // ──────────────────────────────────────────────────────────────────────────
-    // 404 – Documento não encontrado
+    // 1. Arquivo corrompido, vazio ou ilegível -> HTTP 400 (Bad Request)
     // ──────────────────────────────────────────────────────────────────────────
+    @ExceptionHandler(FileProcessingException.class)
+    public ResponseEntity<ProblemDetail> handleFileProcessing(FileProcessingException ex, HttpServletRequest request) {
+        log.error("Erro no processamento do arquivo: {}", ex.getMessage(), ex);
 
-    @ExceptionHandler(DocumentNotFoundException.class)
-
-    public ResponseEntity<ProblemDetail> handleDocumentNotFound(
-            DocumentNotFoundException ex, HttpServletRequest request) {
-
-        log.warn("Documento não encontrado: {}", ex.getMessage());
-
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
-        problem.setTitle("Documento Não Encontrado");
-        problem.setType(URI.create("urn:problem-type:documento-nao-encontrado"));
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Arquivo Corrompido ou Ilegível");
+        problem.setType(URI.create("urn:problem-type:arquivo-invalido"));
         problem.setInstance(URI.create(request.getRequestURI()));
         problem.setProperty("timestamp", OffsetDateTime.now());
 
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // 415 – Formato de arquivo não suportado
+    // 2. Tamanho do arquivo excedido (> 10MB) -> HTTP 413 (Payload Too Large)
     // ──────────────────────────────────────────────────────────────────────────
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ProblemDetail> handleMaxSize(MaxUploadSizeExceededException ex, HttpServletRequest request) {
+        log.warn("Arquivo excede limite máximo permitido de 10MB: {}", ex.getMessage());
 
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.PAYLOAD_TOO_LARGE,
+                "O arquivo enviado excede o limite máximo permitido de 10MB."
+        );
+        problem.setTitle("Tamanho do Arquivo Excedido");
+        problem.setType(URI.create("urn:problem-type:tamanho-excedido"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("timestamp", OffsetDateTime.now());
+
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(problem);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 3. Falha na execução do Tesseract OCR -> HTTP 500 (Internal Server Error)
+    // ──────────────────────────────────────────────────────────────────────────
+    @ExceptionHandler(OcrProcessingException.class)
+    public ResponseEntity<ProblemDetail> handleOcrFailure(OcrProcessingException ex, HttpServletRequest request) {
+        log.error("Falha durante o processamento do Tesseract OCR: {}", ex.getMessage(), ex);
+
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Falha ao executar o reconhecimento óptico de caracteres (Tesseract OCR): " + ex.getMessage()
+        );
+        problem.setTitle("Falha na Execução do OCR");
+        problem.setType(URI.create("urn:problem-type:falha-ocr"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("timestamp", OffsetDateTime.now());
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(problem);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 4. Indisponibilidade da API da LLM / Spring AI -> HTTP 503 (Service Unavailable)
+    // ──────────────────────────────────────────────────────────────────────────
+    @ExceptionHandler(AiProcessingException.class)
+    public ResponseEntity<ProblemDetail> handleAiFailure(AiProcessingException ex, HttpServletRequest request) {
+        log.error("Indisponibilidade ou erro na comunicação com a API de IA: {}", ex.getMessage(), ex);
+
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "O serviço de inteligência artificial (Spring AI) está temporariamente indisponível: " + ex.getMessage()
+        );
+        problem.setTitle("Indisponibilidade da API da LLM");
+        problem.setType(URI.create("urn:problem-type:ia-indisponivel"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        problem.setProperty("timestamp", OffsetDateTime.now());
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problem);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 5. Formato de arquivo não suportado -> HTTP 415 (Unsupported Media Type)
+    // ──────────────────────────────────────────────────────────────────────────
     @ExceptionHandler(UnsupportedFileFormatException.class)
-
-    public ResponseEntity<ProblemDetail> handleUnsupportedFormat(
-            UnsupportedFileFormatException ex, HttpServletRequest request) {
-
+    public ResponseEntity<ProblemDetail> handleUnsupportedFormat(UnsupportedFileFormatException ex, HttpServletRequest request) {
         log.warn("Formato de arquivo não suportado: {}", ex.getMessage());
 
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNSUPPORTED_MEDIA_TYPE, ex.getMessage());
@@ -77,104 +113,31 @@ public class GlobalExceptionHandler {
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // 400 – Arquivo corrompido ou inválido
+    // 6. Documento não encontrado -> HTTP 404 (Not Found)
     // ──────────────────────────────────────────────────────────────────────────
+    @ExceptionHandler(DocumentNotFoundException.class)
+    public ResponseEntity<ProblemDetail> handleDocumentNotFound(DocumentNotFoundException ex, HttpServletRequest request) {
+        log.warn("Documento não encontrado: {}", ex.getMessage());
 
-    @ExceptionHandler(FileProcessingException.class)
-
-    public ResponseEntity<ProblemDetail> handleFileProcessing(
-            FileProcessingException ex, HttpServletRequest request) {
-
-        log.error("Erro no processamento do arquivo: {}", ex.getMessage(), ex);
-
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
-        problem.setTitle("Arquivo Corrompido ou Inválido");
-        problem.setType(URI.create("urn:problem-type:arquivo-invalido"));
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Documento Não Encontrado");
+        problem.setType(URI.create("urn:problem-type:documento-nao-encontrado"));
         problem.setInstance(URI.create(request.getRequestURI()));
         problem.setProperty("timestamp", OffsetDateTime.now());
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // 413 – Arquivo excede 10 MB
+    // 7. Parâmetros inválidos de requisição / Bean Validation -> HTTP 400 (Bad Request)
     // ──────────────────────────────────────────────────────────────────────────
-
-    @ExceptionHandler(MaxUploadSizeExceededException.class)
-
-    public ResponseEntity<ProblemDetail> handleMaxSize(
-            MaxUploadSizeExceededException ex, HttpServletRequest request) {
-
-        log.warn("Arquivo excede limite de 10 MB: {}", ex.getMessage());
-
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.PAYLOAD_TOO_LARGE,
-                "O arquivo enviado excede o limite máximo permitido de 10 MB."
-        );
-        problem.setTitle("Tamanho do Arquivo Excedido");
-        problem.setType(URI.create("urn:problem-type:tamanho-excedido"));
-        problem.setInstance(URI.create(request.getRequestURI()));
-        problem.setProperty("timestamp", OffsetDateTime.now());
-
-        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(problem);
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // 422 – Falha no Tesseract OCR
-    // ──────────────────────────────────────────────────────────────────────────
-
-    @ExceptionHandler(OcrProcessingException.class)
-
-    public ResponseEntity<ProblemDetail> handleOcrFailure(
-            OcrProcessingException ex, HttpServletRequest request) {
-
-        log.error("Falha no Tesseract OCR: {}", ex.getMessage(), ex);
-
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
-        problem.setTitle("Falha na Extração OCR");
-        problem.setType(URI.create("urn:problem-type:falha-ocr"));
-        problem.setInstance(URI.create(request.getRequestURI()));
-        problem.setProperty("timestamp", OffsetDateTime.now());
-
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(problem);
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // 503 – Indisponibilidade da API da LLM / Spring AI
-    // ──────────────────────────────────────────────────────────────────────────
-
-    @ExceptionHandler(AiProcessingException.class)
-
-    public ResponseEntity<ProblemDetail> handleAiFailure(
-            AiProcessingException ex, HttpServletRequest request) {
-
-        log.error("Erro na comunicação com o modelo de IA: {}", ex.getMessage(), ex);
-
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-                HttpStatus.SERVICE_UNAVAILABLE,
-                "O serviço de IA está temporariamente indisponível para extração: " + ex.getMessage());
-        problem.setTitle("Indisponibilidade da API da LLM");
-        problem.setType(URI.create("urn:problem-type:ia-indisponivel"));
-        problem.setInstance(URI.create(request.getRequestURI()));
-        problem.setProperty("timestamp", OffsetDateTime.now());
-
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problem);
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // 400 – Parâmetros de requisição inválidos (Bean Validation)
-    // ──────────────────────────────────────────────────────────────────────────
-
     @ExceptionHandler(MethodArgumentNotValidException.class)
-
-    public ResponseEntity<ProblemDetail> handleValidationErrors(
-            MethodArgumentNotValidException ex, HttpServletRequest request) {
-
+    public ResponseEntity<ProblemDetail> handleValidationErrors(MethodArgumentNotValidException ex, HttpServletRequest request) {
         String errors = ex.getBindingResult().getFieldErrors().stream()
                 .map(err -> err.getField() + ": " + err.getDefaultMessage())
                 .collect(Collectors.joining("; "));
 
-        log.warn("Parâmetros inválidos na requisição: {}", errors);
+        log.warn("Validação de argumentos rejeitada: {}", errors);
 
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, errors);
         problem.setTitle("Validação de Entrada Rejeitada");
@@ -185,16 +148,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 400 – IllegalArgumentException
-    // ──────────────────────────────────────────────────────────────────────────
-
     @ExceptionHandler(IllegalArgumentException.class)
-
-    public ResponseEntity<ProblemDetail> handleIllegalArgument(
-            IllegalArgumentException ex, HttpServletRequest request) {
-
-        log.warn("Argumento inválido recebido: {}", ex.getMessage());
+    public ResponseEntity<ProblemDetail> handleIllegalArgument(IllegalArgumentException ex, HttpServletRequest request) {
+        log.warn("Argumento inválido na requisição: {}", ex.getMessage());
 
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
         problem.setTitle("Requisição Inválida");
@@ -206,19 +162,16 @@ public class GlobalExceptionHandler {
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // 500 – Fallback genérico (qualquer Exception não tratada acima)
+    // 8. Fallback genérico para qualquer outra exceção não tratada -> HTTP 500
     // ──────────────────────────────────────────────────────────────────────────
-
     @ExceptionHandler(Exception.class)
-
-    public ResponseEntity<ProblemDetail> handleGenericException(
-            Exception ex, HttpServletRequest request) {
-
-        log.error("Erro interno não tratado durante o processamento: {}", ex.getMessage(), ex);
+    public ResponseEntity<ProblemDetail> handleGenericException(Exception ex, HttpServletRequest request) {
+        log.error("Erro interno não tratado no servidor: {}", ex.getMessage(), ex);
 
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(
                 HttpStatus.INTERNAL_SERVER_ERROR,
-                "Ocorreu um erro interno inesperado durante o processamento do documento.");
+                "Ocorreu um erro interno inesperado durante o processamento do documento."
+        );
         problem.setTitle("Erro Interno do Servidor");
         problem.setType(URI.create("urn:problem-type:erro-interno"));
         problem.setInstance(URI.create(request.getRequestURI()));

@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
  * Interpreta o texto bruto do OCR e extrai as entidades estruturadas no record {@link DadosDocumento}.
  */
 @Service
-public class DocumentAiService {
+public class DocumentAiService implements SpringAiService {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentAiService.class);
 
@@ -41,6 +41,11 @@ public class DocumentAiService {
         this.chatModel = chatModel;
         this.objectMapper = objectMapper;
         this.outputConverter = new BeanOutputConverter<>(DadosDocumento.class, objectMapper);
+    }
+
+    @Override
+    public DadosDocumento extrairDados(String textoOcr) {
+        return extractDocumentData(textoOcr);
     }
 
     /**

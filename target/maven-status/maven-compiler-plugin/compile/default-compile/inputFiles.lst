@@ -30,6 +30,11 @@ D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\co
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\service\DocumentValidationService.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\service\ImagePreprocessingService.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\service\OcrExtractionService.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\service\OpenCvService.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\service\OpenCvServiceImpl.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\service\RegrasValidacaoService.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\service\SpringAiService.java
+D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\service\TesseractOcrService.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\service\validation\CpfValidationRule.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\service\validation\DocumentValidationRule.java
 D:\Estudos\Cesar\2026.2\PortoDigital\ProjetoValidacaoDocumentos\src\main\java\com\portodigital\validacaodocumentos\service\validation\EnderecoValidationRule.java
