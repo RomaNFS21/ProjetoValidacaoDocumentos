@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Paleta Avanade 2026.2 */
+  --color-avanade-orange: #FF5800;
+  --color-avanade-hover: #FF4500;
+  --color-avanade-light: #FFF7ED;
+  --color-avanade-border: #FFEDD5;
+
+  /* Neutros e Fundo */
+  --color-bg-main: #F8FAFC;
+  --color-bg-subtle: #F1F5F9;
+  --color-border: #E2E8F0;
+
+  /* Status */
+  --color-success: #22C55E;
+  --color-error: #EF4444;
+  --color-warning: #F59E0B;
+}
+
+@layer base {
+  * {
+    border-color: #E2E8F0;
+  }
+
+  body {
+    background-color: var(--color-bg-main);
+    color: #1E293B;
+    font-family: 'Inter', 'Roboto', sans-serif;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
