@@ -30,3 +30,12 @@ target/
 
 ### Environment ###
 .env
+
+### Node / Frontend ###
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+*.local
+.pnpm-debug.log*
+

@@ -8,6 +8,7 @@ import {
   Users,
   HelpCircle,
   ChevronRight,
+  LucideIcon,
 } from 'lucide-react';
 import { Avatar } from '../common/Avatar';
 import { NavItemId } from '../../types/navigation';
@@ -23,7 +24,7 @@ interface SidebarProps {
 interface SidebarLink {
   id: NavItemId;
   label: string;
-  icon: React.ComponentType<{ className?: string; size?: number }>;
+  icon: LucideIcon;
   badge?: string;
   badgeType?: 'orange' | 'neutral';
 }
