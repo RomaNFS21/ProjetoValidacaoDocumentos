@@ -2,68 +2,204 @@ import React, { useState } from 'react';
 import { MainLayout } from './components/layout/MainLayout';
 import { Stepper } from './components/pipeline/Stepper';
 import { DocumentUploadView } from './components/pipeline/DocumentUploadView';
+import { ProcessingView } from './components/pipeline/ProcessingView';
+import { ResultView } from './components/pipeline/ResultView';
 import {
   StepFase,
   ArquivoValido,
   TipoDocumentoCodigo,
+  DocumentoRespostaDTO,
 } from './types/document';
 import { NavItemId } from './types/navigation';
 import {
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  FileText,
-  RotateCcw,
-  Sparkles,
-} from 'lucide-react';
+  validarDocumento,
+  ApiError,
+} from './services/documentoService';
+import { AlertCircle, Sparkles } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [activeNav, setActiveNav] = useState<NavItemId>('documentos');
   const [currentStep, setCurrentStep] = useState<StepFase>(1);
   const [uploadedFile, setUploadedFile] = useState<ArquivoValido | null>(null);
-  const [, setDocumentType] =
+  const [documentType, setDocumentType] =
     useState<TipoDocumentoCodigo>('COMPROVANTE_RESIDENCIA');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [feedbackMessage] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [resultado, setResultado] = useState<DocumentoRespostaDTO | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isMockAvailable, setIsMockAvailable] = useState<boolean>(false);
 
-  // Manipulador quando o usuário clica em "Processar documento →"
-  const handleProcessDocument = (
+  /**
+   * Dispara a validação do documento consumindo o endpoint REST /api/v1/documentos/validar
+   */
+  const handleProcessDocument = async (
     arquivo: ArquivoValido,
     tipo: TipoDocumentoCodigo
   ) => {
     setUploadedFile(arquivo);
     setDocumentType(tipo);
     setIsProcessing(true);
+    setErrorMessage(null);
+    setIsMockAvailable(false);
+    setCurrentStep(2); // Inicia tela animada de processamento
 
-    // Simulação visual de avanço do pipeline
-    setTimeout(() => {
-      setIsProcessing(false);
-      setCurrentStep(2); // Avança para "Processamento (OCR e extração)"
-    }, 1200);
+    const startTime = Date.now();
+    const MIN_ANIMATION_TIME = 2800; // Tempo mínimo para o usuário visualizar as etapas de OCR & IA
+
+    try {
+      // Chamada real ao backend via FormData
+      const resposta = await validarDocumento(arquivo.file, tipo);
+
+      // Garante transição suave das animações de OCR e IA
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, MIN_ANIMATION_TIME - elapsedTime);
+
+      setTimeout(() => {
+        setResultado(resposta);
+        setIsProcessing(false);
+        setCurrentStep(4); // Exibe tela de resultado final
+      }, remainingTime);
+    } catch (err: unknown) {
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, 1500 - elapsedTime);
+
+      setTimeout(() => {
+        setIsProcessing(false);
+        if (err instanceof ApiError) {
+          setErrorMessage(err.message);
+          // Se for erro de conexão/servidor offline, disponibiliza opção de visualização simulada
+          if (!err.status || err.status >= 500) {
+            setIsMockAvailable(true);
+          }
+        } else if (err instanceof Error) {
+          setErrorMessage(err.message);
+          setIsMockAvailable(true);
+        } else {
+          setErrorMessage('Ocorreu um erro inesperado durante a validação.');
+        }
+        setCurrentStep(1); // Retorna para ajuste ou nova tentativa
+      }, remainingTime);
+    }
   };
 
+  /**
+   * Gera uma resposta mock para fins de demonstração visual caso o backend não esteja ativo
+   */
+  const handleSimularResultado = (statusAprovado: boolean = true) => {
+    const mockResposta: DocumentoRespostaDTO = {
+      documentoId: 'b7c3d2e1-4567-489a-bcde-f0123456789a',
+      nomeArquivo: uploadedFile?.nome || 'comprovante_residencia.pdf',
+      tipoDocumento: documentType,
+      status: statusAprovado ? 'APROVADO' : 'REPROVADO',
+      mensagem: statusAprovado
+        ? 'Documento validado com sucesso após processamento OCR e verificação de regras.'
+        : 'Documento reprovado: data de emissão ultrapassa o limite de 90 dias.',
+      motivoReprovacao: statusAprovado
+        ? null
+        : 'Comprovante emitido há mais de 90 dias.',
+      criterios: {
+        cpfEncontrado: true,
+        cpfValido: true,
+        enderecoEncontrado: true,
+        documentoLegivel: true,
+        emissaoMenor90Dias: statusAprovado,
+      },
+      dadosExtraidos: {
+        nome: 'Kleber Meira da Silva',
+        cpf: '123.456.789-00',
+        endereco: 'Avenida Cais do Apolo, 455, Bairro do Recife',
+        cidade: 'Recife',
+        estado: 'PE',
+        dataEmissao: statusAprovado ? '2026-09-15' : '2025-12-10',
+      },
+      dataProcessamento: new Date().toISOString(),
+    };
+
+    setErrorMessage(null);
+    setIsMockAvailable(false);
+    setIsProcessing(true);
+    setCurrentStep(2);
+
+    setTimeout(() => {
+      setResultado(mockResposta);
+      setIsProcessing(false);
+      setCurrentStep(4);
+    }, 2000);
+  };
+
+  /**
+   * Reseta o fluxo para o início (Passo 1: Upload)
+   */
   const handleReset = () => {
     setCurrentStep(1);
     setUploadedFile(null);
+    setResultado(null);
     setIsProcessing(false);
+    setErrorMessage(null);
+    setIsMockAvailable(false);
   };
 
   return (
     <MainLayout activeNav={activeNav} onNavigate={setActiveNav}>
       <div className="space-y-6">
-        
+
         {/* 1. Stepper de Progresso em 4 Fases */}
         <Stepper
           currentStep={currentStep}
           onStepClick={(step) => {
             // Permite navegar apenas para etapas concluídas ou atual
-            if (step <= currentStep) {
+            if (step <= currentStep && !isProcessing) {
               setCurrentStep(step);
             }
           }}
         />
 
-        {/* 2. Área Principal de Conteúdo Conforme a Etapa */}
+        {/* Banner de Erro com Opção de Ação e Simulação se o Backend estiver indisponível */}
+        {errorMessage && (
+          <div
+            role="alert"
+            className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-900 shadow-2xs space-y-3 animate-in fade-in-50 duration-200"
+          >
+            <div className="flex items-start gap-3">
+              <AlertCircle size={20} className="text-red-600 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1 min-w-0 flex-1">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-red-800">
+                  Atenção no Processamento
+                </h4>
+                <p className="text-xs leading-relaxed text-red-700">
+                  {errorMessage}
+                </p>
+              </div>
+            </div>
+
+            {isMockAvailable && (
+              <div className="pt-2 border-t border-red-200/80 flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[11px] text-red-700 font-medium">
+                  Deseja testar a visualização da tela de resultado com dados simulados?
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSimularResultado(true)}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Sparkles size={14} />
+                    <span>Simular Aprovado</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSimularResultado(false)}
+                    className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>Simular Reprovado</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 2. Conteúdo da Fase Atual */}
+        {/* Passo 1: Upload */}
         {currentStep === 1 && (
           <DocumentUploadView
             onProcessDocument={handleProcessDocument}
@@ -72,127 +208,24 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Placeholder / Visualização para a Etapa 2 (Processamento) */}
-        {currentStep === 2 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-2xs text-center space-y-6">
-            <div className="w-16 h-16 rounded-2xl bg-orange-50 text-[#FF5800] flex items-center justify-center mx-auto shadow-2xs">
-              <Loader2 size={32} className="animate-spin text-[#FF5800]" />
-            </div>
-
-            <div className="max-w-md mx-auto">
-              <h3 className="text-xl font-bold text-slate-900">
-                Processando Documento via OCR
-              </h3>
-              <p className="text-sm text-slate-600 mt-1.5">
-                Executando pipeline OpenCV e Tesseract OCR para extração estruturada de dados com Spring AI.
-              </p>
-            </div>
-
-            {uploadedFile && (
-              <div className="inline-flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
-                <FileText size={16} className="text-[#FF5800]" />
-                <span className="font-semibold">{uploadedFile.nome}</span>
-                <span className="text-slate-400">({uploadedFile.tamanhoFormatado})</span>
-              </div>
-            )}
-
-            <div className="pt-4 flex items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => setCurrentStep(3)}
-                className="px-5 py-2.5 rounded-xl bg-[#FF5800] hover:bg-[#FF4500] text-white text-xs font-semibold shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <Sparkles size={16} />
-                <span>Simular Conclusão OCR (Ir p/ Validação)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleReset}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <RotateCcw size={14} />
-                <span>Reiniciar</span>
-              </button>
-            </div>
-          </div>
+        {/* Passos 2 e 3: Transição e Carregamento Animado com OpenCV, Tesseract, Spring AI e Java */}
+        {(currentStep === 2 || currentStep === 3) && (
+          <ProcessingView
+            arquivo={uploadedFile}
+            onStepChange={(fase) => {
+              if (fase === 3 && currentStep === 2) {
+                setCurrentStep(3);
+              }
+            }}
+          />
         )}
 
-        {/* Placeholder para Etapa 3 (Validação de Regras) */}
-        {currentStep === 3 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-2xs text-center space-y-6">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-2xs">
-              <Sparkles size={32} />
-            </div>
-
-            <div className="max-w-md mx-auto">
-              <h3 className="text-xl font-bold text-slate-900">
-                Validação de Regras de Negócio
-              </h3>
-              <p className="text-sm text-slate-600 mt-1.5">
-                Verificando elegibilidade do comprovante, data de emissão inferior a 90 dias e CPF.
-              </p>
-            </div>
-
-            <div className="pt-4 flex items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => setCurrentStep(4)}
-                className="px-5 py-2.5 rounded-xl bg-[#FF5800] hover:bg-[#FF4500] text-white text-xs font-semibold shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <CheckCircle2 size={16} />
-                <span>Finalizar e Ver Resultado</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleReset}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:text-slate-900 text-xs font-semibold transition-all cursor-pointer"
-              >
-                Reiniciar
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Placeholder para Etapa 4 (Resultado Final) */}
-        {currentStep === 4 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-2xs text-center space-y-6">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-[#22C55E] flex items-center justify-center mx-auto ring-4 ring-emerald-50">
-              <CheckCircle2 size={36} />
-            </div>
-
-            <div className="max-w-md mx-auto">
-              <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 mb-2">
-                STATUS: APROVADO
-              </span>
-              <h3 className="text-xl font-bold text-slate-900">
-                Documento Validado com Sucesso!
-              </h3>
-              <p className="text-sm text-slate-600 mt-1.5">
-                Todos os critérios de validação foram atendidos e registrados no PostgreSQL.
-              </p>
-            </div>
-
-            <div className="pt-4 flex items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={handleReset}
-                className="px-6 py-2.5 rounded-xl bg-[#FF5800] hover:bg-[#FF4500] text-white text-xs font-semibold shadow-2xs transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <RotateCcw size={15} />
-                <span>Validar Novo Documento</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Feedback ou Mensagem de Notificação se houver */}
-        {feedbackMessage && (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 text-blue-700 text-xs border border-blue-200">
-            <AlertCircle size={16} />
-            <span>{feedbackMessage}</span>
-          </div>
+        {/* Passo 4: Tela de Resultado Final */}
+        {currentStep === 4 && resultado && (
+          <ResultView
+            resultado={resultado}
+            onReset={handleReset}
+          />
         )}
       </div>
     </MainLayout>

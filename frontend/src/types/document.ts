@@ -4,6 +4,8 @@ export type TipoDocumentoCodigo =
   | 'CNH'
   | 'OUTRO';
 
+export type StatusValidacao = 'APROVADO' | 'REPROVADO' | 'EM_PROCESSAMENTO';
+
 export interface TipoDocumentoOption {
   codigo: TipoDocumentoCodigo;
   nome: string;
@@ -73,3 +75,41 @@ export interface ArquivoValido {
   previewUrl?: string;
 }
 
+export interface CriteriosValidacao {
+  cpfEncontrado: boolean;
+  cpfValido: boolean;
+  enderecoEncontrado: boolean;
+  documentoLegivel: boolean;
+  emissaoMenor90Dias: boolean;
+}
+
+export interface DadosExtraidos {
+  nome: string | null;
+  cpf: string | null;
+  endereco: string | null;
+  cidade: string | null;
+  estado: string | null;
+  dataEmissao: string | null;
+}
+
+export interface DocumentoRespostaDTO {
+  documentoId: string;
+  nomeArquivo: string;
+  tipoDocumento: TipoDocumentoCodigo;
+  status: StatusValidacao;
+  mensagem: string;
+  motivoReprovacao?: string | null;
+  criterios: CriteriosValidacao;
+  dadosExtraidos: DadosExtraidos;
+  dataProcessamento: string;
+}
+
+export interface ProblemDetail {
+  type?: string;
+  title?: string;
+  status?: number;
+  detail?: string;
+  instance?: string;
+  timestamp?: string;
+  [key: string]: unknown;
+}
