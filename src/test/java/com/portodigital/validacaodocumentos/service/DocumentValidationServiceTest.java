@@ -213,4 +213,115 @@ class DocumentValidationServiceTest {
         assertThat(result.motivoReprovacao()).contains("Endereço");
         assertThat(result.motivoReprovacao()).contains("superior a 90 dias");
     }
+
+    @Test
+    @DisplayName("Cenário 9: CNH emitida há 5 anos (mais de 90 dias, mas <= 10 anos) deve ser APROVADA")
+    void shouldApproveCnhIssuedWithin10Years() {
+        // CNH emitida há 5 anos (válida dentro do limite de 10 anos)
+        LocalDate dataCnh = LocalDate.now().minusYears(5);
+
+        DadosDocumento dadosCnh = new DadosDocumento(
+                "Joao da Silva",
+                CPF_VALIDO,
+                null, // CNH não contém endereço residencial
+                "Recife",
+                "PE",
+                dataCnh
+        );
+
+        String textoOcrCnh = "CARTEIRA NACIONAL DE HABILITACAO DETRAN-PE NOME: JOAO DA SILVA CPF: 529.982.247-25";
+
+        ValidationResult result = validationService.validate(
+                dadosCnh,
+                textoOcrCnh,
+                com.portodigital.validacaodocumentos.domain.enums.TipoDocumento.CNH
+        );
+
+        assertThat(result.status()).isEqualTo(StatusValidacao.APROVADO);
+        assertThat(result.criterios().emissaoMenor90Dias()).isTrue();
+        assertThat(result.criterios().cpfValido()).isTrue();
+        assertThat(result.motivoReprovacao()).isNull();
+    }
+
+    @Test
+    @DisplayName("Cenário 10: CNH emitida há mais de 10 anos deve ser REPROVADA")
+    void shouldRejectCnhIssuedOlderThan10Years() {
+        // CNH emitida há 11 anos (ultrapassa limite de 10 anos)
+        LocalDate dataCnhAntiga = LocalDate.now().minusYears(11);
+
+        DadosDocumento dadosCnh = new DadosDocumento(
+                "Joao da Silva",
+                CPF_VALIDO,
+                null,
+                "Recife",
+                "PE",
+                dataCnhAntiga
+        );
+
+        String textoOcrCnh = "CARTEIRA NACIONAL DE HABILITACAO DETRAN-PE NOME: JOAO DA SILVA CPF: 529.982.247-25";
+
+        ValidationResult result = validationService.validate(
+                dadosCnh,
+                textoOcrCnh,
+                com.portodigital.validacaodocumentos.domain.enums.TipoDocumento.CNH
+        );
+
+        assertThat(result.status()).isEqualTo(StatusValidacao.REPROVADO);
+        assertThat(result.criterios().emissaoMenor90Dias()).isFalse();
+        assertThat(result.motivoReprovacao()).contains("superior a 10 anos para CNH");
+    }
+
+    @Test
+    @DisplayName("Cenário 11: RG emitido há 8 anos deve ser APROVADO")
+    void shouldApproveRgIssuedWithin10Years() {
+        LocalDate dataRg = LocalDate.now().minusYears(8);
+
+        DadosDocumento dadosRg = new DadosDocumento(
+                "Maria Oliveira",
+                CPF_VALIDO,
+                null, // RG não contém endereço residencial
+                "Recife",
+                "PE",
+                dataRg
+        );
+
+        String textoOcrRg = "SECRETARIA DE DEFESA SOCIAL INSTITUTO DE IDENTIFICACAO NOME: MARIA OLIVEIRA CPF: 529.982.247-25";
+
+        ValidationResult result = validationService.validate(
+                dadosRg,
+                textoOcrRg,
+                com.portodigital.validacaodocumentos.domain.enums.TipoDocumento.RG
+        );
+
+        assertThat(result.status()).isEqualTo(StatusValidacao.APROVADO);
+        assertThat(result.criterios().emissaoMenor90Dias()).isTrue();
+        assertThat(result.motivoReprovacao()).isNull();
+    }
+
+    @Test
+    @DisplayName("Cenário 12: RG emitido há mais de 10 anos deve ser REPROVADO")
+    void shouldRejectRgIssuedOlderThan10Years() {
+        LocalDate dataRgAntiga = LocalDate.now().minusYears(12);
+
+        DadosDocumento dadosRg = new DadosDocumento(
+                "Maria Oliveira",
+                CPF_VALIDO,
+                null,
+                "Recife",
+                "PE",
+                dataRgAntiga
+        );
+
+        String textoOcrRg = "SECRETARIA DE DEFESA SOCIAL INSTITUTO DE IDENTIFICACAO NOME: MARIA OLIVEIRA CPF: 529.982.247-25";
+
+        ValidationResult result = validationService.validate(
+                dadosRg,
+                textoOcrRg,
+                com.portodigital.validacaodocumentos.domain.enums.TipoDocumento.RG
+        );
+
+        assertThat(result.status()).isEqualTo(StatusValidacao.REPROVADO);
+        assertThat(result.criterios().emissaoMenor90Dias()).isFalse();
+        assertThat(result.motivoReprovacao()).contains("superior a 10 anos para RG");
+    }
 }

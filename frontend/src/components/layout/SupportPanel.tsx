@@ -127,7 +127,7 @@ export const SupportPanel: React.FC<SupportPanelProps> = ({ className = '' }) =>
               Importante
             </h4>
             <p className="text-xs text-[#9A3412]/90 leading-relaxed font-normal">
-              O documento deve ter sido emitido nos <strong>últimos 90 dias</strong> e estar em nome do titular ou de parente de 1º grau devidamente comprovado.
+              Comprovantes de residência devem ter sido emitidos nos <strong>últimos 90 dias</strong>. Para <strong>CNH e RG</strong>, a data de emissão deve ser de no <strong>máximo 10 anos</strong>.
             </p>
           </div>
         </div>

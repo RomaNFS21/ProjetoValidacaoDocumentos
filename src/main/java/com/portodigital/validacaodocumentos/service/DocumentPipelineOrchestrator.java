@@ -142,8 +142,8 @@ public class DocumentPipelineOrchestrator {
         log.info("[Etapa 5/9] Campos extraídos persistidos em 'dados_extraidos' com ID: {}", dadosExtraidos.getId());
 
         // 6. Executa o motor de validação de regras de negócio
-        ValidationResult validationResult = regrasValidacaoService.validar(dadosDocumento, textoBrutoOcr);
-        log.info("[Etapa 6/9] Motor de regras executado. Resultado: {}", validationResult.status());
+        ValidationResult validationResult = regrasValidacaoService.validar(dadosDocumento, textoBrutoOcr, tipoDoc);
+        log.info("[Etapa 6/9] Motor de regras executado para tipo {}. Resultado: {}", tipoDoc, validationResult.status());
 
         // 7. Salva o resultado final na tabela 'validacoes' (Status APROVADO ou REPROVADO + mensagem + critérios)
         CriteriosValidacaoEmbeddable criteriosEmbeddable = CriteriosValidacaoEmbeddable.builder()

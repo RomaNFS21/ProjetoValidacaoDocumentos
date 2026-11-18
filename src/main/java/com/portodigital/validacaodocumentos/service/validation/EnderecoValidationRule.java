@@ -1,13 +1,15 @@
 package com.portodigital.validacaodocumentos.service.validation;
 
 import com.portodigital.validacaodocumentos.domain.dto.DadosDocumento;
+import com.portodigital.validacaodocumentos.domain.enums.TipoDocumento;
 import org.springframework.stereotype.Component;
 
 import java.util.regex.Pattern;
 
 /**
  * Regra 2 - Presença de Endereço:
- * O campo de endereço deve estar preenchido com logradouro e numeração identificáveis.
+ * - Para Comprovante de Residência: O campo de endereço deve estar preenchido com logradouro e numeração identificáveis.
+ * - Para CNH e RG: Isento de validação de endereço residencial.
  */
 @Component
 public class EnderecoValidationRule implements DocumentValidationRule {
@@ -32,6 +34,16 @@ public class EnderecoValidationRule implements DocumentValidationRule {
 
     @Override
     public ValidationRuleResult validate(DadosDocumento dados, String rawText) {
+        return validate(dados, rawText, TipoDocumento.COMPROVANTE_RESIDENCIA);
+    }
+
+    @Override
+    public ValidationRuleResult validate(DadosDocumento dados, String rawText, TipoDocumento tipoDocumento) {
+        // Para CNH e RG, endereço residencial não é obrigatório
+        if (tipoDocumento == TipoDocumento.CNH || tipoDocumento == TipoDocumento.RG) {
+            return ValidationRuleResult.aprovado(REGRA_NOME);
+        }
+
         if (dados == null || dados.endereco() == null || dados.endereco().trim().isEmpty()) {
             return ValidationRuleResult.reprovado(REGRA_NOME, "Endereço ausente no documento");
         }

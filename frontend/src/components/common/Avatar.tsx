@@ -9,8 +9,8 @@ interface AvatarProps {
 }
 
 export const Avatar: React.FC<AvatarProps> = ({
-  initials = 'KM',
-  name = 'Kleber Meira',
+  initials = 'VR',
+  name = 'Victor Roma',
   size = 'md',
   className = '',
   showOnlineBadge = true,

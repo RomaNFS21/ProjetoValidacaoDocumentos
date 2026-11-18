@@ -21,12 +21,12 @@ export const TIPOS_DOCUMENTO: TipoDocumentoOption[] = [
   {
     codigo: 'RG',
     nome: 'RG - Carteira de Identidade',
-    descricao: 'Frente e verso do documento de identidade civil',
+    descricao: 'Frente e verso da identidade com emissão recente (máx. 10 anos)',
   },
   {
     codigo: 'CNH',
     nome: 'CNH - Carteira Nacional de Habilitação',
-    descricao: 'Documento aberto com foto legível e QR code',
+    descricao: 'Documento aberto legível com foto, QR code e emissão em até 10 anos',
   },
   {
     codigo: 'OUTRO',

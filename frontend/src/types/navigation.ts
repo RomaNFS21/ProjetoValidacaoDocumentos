@@ -1,5 +1,4 @@
 export type NavItemId =
-  | 'encontro-2'
   | 'documentos'
   | 'meus-envios'
   | 'resultados'

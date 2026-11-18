@@ -73,15 +73,15 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Divisor vertical sutil */}
           <div className="h-6 w-px bg-slate-200 hidden sm:block" />
 
-          {/* Perfil / Avatar KM */}
+          {/* Perfil / Avatar VR */}
           <div className="flex items-center gap-3 pl-1">
-            <Avatar initials="KM" name="Kleber Meira" size="md" showOnlineBadge={true} />
+            <Avatar initials="VR" name="Victor Roma" size="md" showOnlineBadge={true} />
             <div className="hidden xl:flex flex-col text-left select-none">
               <span className="text-sm font-semibold text-slate-800 leading-tight">
-                Kleber Meira
+                Victor Roma
               </span>
               <span className="text-xs text-slate-500">
-                Grupo A
+                Cesar
               </span>
             </div>
           </div>

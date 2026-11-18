@@ -26,6 +26,8 @@ export const ResultView: React.FC<ResultViewProps> = ({
   onReset,
 }) => {
   const isAprovado = resultado.status === 'APROVADO';
+  const isDocIdentidade =
+    resultado.tipoDocumento === 'CNH' || resultado.tipoDocumento === 'RG';
 
   const criterios = [
     {
@@ -38,11 +40,13 @@ export const ResultView: React.FC<ResultViewProps> = ({
         : 'CPF inválido ou não identificado no documento',
     },
     {
-      label: 'Endereço identificado',
+      label: isDocIdentidade ? 'Endereço (Dispensado)' : 'Endereço identificado',
       atendido: Boolean(resultado.criterios?.enderecoEncontrado),
-      detalhes: resultado.criterios?.enderecoEncontrado
-        ? 'Logradouro e número reconhecidos'
-        : 'Endereço residencial não encontrado',
+      detalhes: isDocIdentidade
+        ? 'Dispensado para documento de identificação (CNH / RG)'
+        : (resultado.criterios?.enderecoEncontrado
+          ? 'Logradouro e número reconhecidos'
+          : 'Endereço residencial não encontrado'),
     },
     {
       label: 'Documento legível',
@@ -52,11 +56,15 @@ export const ResultView: React.FC<ResultViewProps> = ({
         : 'Imagem borrada, com corte ou ilegível',
     },
     {
-      label: 'Emissão < 90 dias',
+      label: isDocIdentidade ? 'Emissão ≤ 10 anos' : 'Emissão < 90 dias',
       atendido: Boolean(resultado.criterios?.emissaoMenor90Dias),
       detalhes: resultado.criterios?.emissaoMenor90Dias
-        ? 'Comprovante recente dentro do período de validade'
-        : 'Documento expedido há mais de 90 dias ou data ilegível',
+        ? (isDocIdentidade
+            ? 'Documento expedido dentro da validade máxima de 10 anos'
+            : 'Comprovante recente dentro do período de validade')
+        : (isDocIdentidade
+            ? 'Documento expedido há mais de 10 anos ou data ilegível'
+            : 'Documento expedido há mais de 90 dias ou data ilegível'),
     },
   ];
 

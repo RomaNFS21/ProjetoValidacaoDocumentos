@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   ArrowLeft,
-  Calendar,
   FileText,
   Send,
   CheckCircle2,
@@ -30,11 +29,6 @@ interface SidebarLink {
 }
 
 const NAV_LINKS: SidebarLink[] = [
-  {
-    id: 'encontro-2',
-    label: 'Encontro 2',
-    icon: Calendar,
-  },
   {
     id: 'documentos',
     label: 'Documentos',
@@ -168,14 +162,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Rodapé da Sidebar: Card do Usuário */}
         <div className="p-4 border-t border-slate-200 bg-slate-50/60">
           <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs hover:border-slate-300 transition-colors">
-            <Avatar initials="KM" name="Kleber Meira" size="md" showOnlineBadge={true} />
+            <Avatar initials="VR" name="Victor Roma" size="md" showOnlineBadge={true} />
             <div className="flex flex-col min-w-0 flex-1">
               <span className="text-sm font-semibold text-slate-800 truncate">
-                Kleber Meira
+                Victor Roma
               </span>
               <span className="text-xs font-medium text-slate-600 truncate flex items-center gap-1.5">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                Grupo A
+                Cesar
               </span>
             </div>
           </div>

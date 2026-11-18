@@ -4,6 +4,7 @@ import com.portodigital.validacaodocumentos.domain.dto.CriteriosValidacao;
 import com.portodigital.validacaodocumentos.domain.dto.DadosDocumento;
 import com.portodigital.validacaodocumentos.domain.dto.ValidationResult;
 import com.portodigital.validacaodocumentos.domain.enums.StatusValidacao;
+import com.portodigital.validacaodocumentos.domain.enums.TipoDocumento;
 import com.portodigital.validacaodocumentos.service.validation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,11 +15,11 @@ import java.util.List;
 
 /**
  * Motor de Validação de Regras de Negócio de Documentos (Padrão Strategy).
- * Avalia cumulativamente as 4 regras:
+ * Avalia cumulativamente as 4 regras conforme o tipo de documento:
  * 1. Presença e Validade do CPF (Módulo 11 e dígitos repetidos)
- * 2. Presença de Endereço (logradouro e numeração identificáveis)
+ * 2. Presença de Endereço (logradouro e numeração identificáveis - obrigatório para Comprovante de Residência)
  * 3. Legibilidade Geral do Documento (comprimento de texto e campos essenciais)
- * 4. Recência Temporal (< 90 dias, não nula, não futura)
+ * 4. Recência Temporal (< 90 dias para Comprovante de Residência; <= 10 anos para CNH e RG)
  */
 @Service
 public class DocumentValidationService implements RegrasValidacaoService {
@@ -55,61 +56,81 @@ public class DocumentValidationService implements RegrasValidacaoService {
 
     @Override
     public ValidationResult validar(DadosDocumento dados, String textoOcr) {
-        return validate(dados, textoOcr);
+        return validar(dados, textoOcr, TipoDocumento.COMPROVANTE_RESIDENCIA);
+    }
+
+    @Override
+    public ValidationResult validar(DadosDocumento dados, String textoOcr, TipoDocumento tipoDocumento) {
+        return validate(dados, textoOcr, tipoDocumento);
     }
 
     /**
-     * Executa a validação de conformidade do documento e determina o status final.
-     *
-     * @param dados   Dados extraídos estruturados
-     * @param rawText Texto bruto extraído pelo OCR
-     * @return {@link ValidationResult} com status final, critérios e eventuais motivos de reprovação
+     * Executa a validação de conformidade do documento e determina o status final (padrão COMPROVANTE_RESIDENCIA).
      */
     public ValidationResult validate(DadosDocumento dados, String rawText) {
-        log.info("Iniciando validação de regras de negócio para documento...");
+        return validate(dados, rawText, TipoDocumento.COMPROVANTE_RESIDENCIA);
+    }
 
+    /**
+     * Executa a validação de conformidade do documento conforme o TipoDocumento.
+     *
+     * @param dados         Dados extraídos estruturados
+     * @param rawText       Texto bruto extraído pelo OCR
+     * @param tipoDocumento Tipo do documento submetido (COMPROVANTE_RESIDENCIA, CNH, RG)
+     * @return {@link ValidationResult} com status final, critérios e eventuais motivos de reprovação
+     */
+    public ValidationResult validate(DadosDocumento dados, String rawText, TipoDocumento tipoDocumento) {
+        TipoDocumento tipo = (tipoDocumento != null) ? tipoDocumento : TipoDocumento.COMPROVANTE_RESIDENCIA;
+        log.info("Iniciando validação de regras de negócio para documento do tipo: {}", tipo);
+
+        boolean isDocIdentidade = (tipo == TipoDocumento.CNH || tipo == TipoDocumento.RG);
         boolean cpfPresente = (dados != null && dados.cpf() != null && !dados.cpf().trim().isEmpty());
         boolean enderecoPresente = (dados != null && dados.endereco() != null && !dados.endereco().trim().isEmpty());
 
         List<String> motivosReprovacao = new ArrayList<>();
 
         // 1. Regra 1: CPF
-        ValidationRuleResult resCpf = cpfValidationRule.validate(dados, rawText);
+        ValidationRuleResult resCpf = cpfValidationRule.validate(dados, rawText, tipo);
         boolean cpfValido = resCpf.aprovado();
         if (!cpfValido) {
             motivosReprovacao.add(resCpf.motivoReprovacao());
         }
 
-        // 2. Regra 2: Endereço
-        ValidationRuleResult resEndereco = enderecoValidationRule.validate(dados, rawText);
-        boolean enderecoValido = resEndereco.aprovado();
-        if (!enderecoValido) {
-            motivosReprovacao.add(resEndereco.motivoReprovacao());
+        // 2. Regra 2: Endereço (obrigatório apenas para Comprovante de Residência)
+        boolean enderecoValido;
+        if (isDocIdentidade) {
+            enderecoValido = true; // Isento para CNH/RG
+        } else {
+            ValidationRuleResult resEndereco = enderecoValidationRule.validate(dados, rawText, tipo);
+            enderecoValido = resEndereco.aprovado();
+            if (!enderecoValido) {
+                motivosReprovacao.add(resEndereco.motivoReprovacao());
+            }
         }
 
         // 3. Regra 3: Legibilidade Geral
-        ValidationRuleResult resLegibilidade = legibilidadeValidationRule.validate(dados, rawText);
+        ValidationRuleResult resLegibilidade = legibilidadeValidationRule.validate(dados, rawText, tipo);
         boolean documentoLegivel = resLegibilidade.aprovado();
         if (!documentoLegivel) {
             motivosReprovacao.add(resLegibilidade.motivoReprovacao());
         }
 
-        // 4. Regra 4: Recência Temporal (< 90 dias)
-        ValidationRuleResult resRecencia = recenciaTemporalValidationRule.validate(dados, rawText);
-        boolean emissaoMenor90Dias = resRecencia.aprovado();
-        if (!emissaoMenor90Dias) {
+        // 4. Regra 4: Recência Temporal (< 90 dias para residência, <= 10 anos para CNH/RG)
+        ValidationRuleResult resRecencia = recenciaTemporalValidationRule.validate(dados, rawText, tipo);
+        boolean emissaoValida = resRecencia.aprovado();
+        if (!emissaoValida) {
             motivosReprovacao.add(resRecencia.motivoReprovacao());
         }
 
         CriteriosValidacao criterios = new CriteriosValidacao(
                 cpfPresente,
                 cpfValido,
-                enderecoValido,
+                isDocIdentidade ? true : (enderecoPresente && enderecoValido),
                 documentoLegivel,
-                emissaoMenor90Dias
+                emissaoValida
         );
 
-        boolean aprovado = criterios.isTodosAprovados();
+        boolean aprovado = criterios.isTodosAprovados(tipo);
         StatusValidacao status = aprovado ? StatusValidacao.APROVADO : StatusValidacao.REPROVADO;
 
         String mensagem = aprovado
@@ -118,7 +139,7 @@ public class DocumentValidationService implements RegrasValidacaoService {
 
         String motivoFinal = aprovado ? null : String.join("; ", motivosReprovacao);
 
-        log.info("Resultado da validação: Status = {}, Motivos = {}", status, motivoFinal);
+        log.info("Resultado da validação ({}): Status = {}, Motivos = {}", tipo, status, motivoFinal);
 
         return new ValidationResult(status, mensagem, motivoFinal, criterios, motivosReprovacao);
     }
