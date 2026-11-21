@@ -182,8 +182,8 @@ public class ImagePreprocessingService {
      */
     public Mat removeNoise(Mat gray) {
         Mat denoised = new Mat();
-        // diâmetro de vizinhança = 9, sigmaColor = 75, sigmaSpace = 75
-        Imgproc.bilateralFilter(gray, denoised, 9, 75, 75);
+        // diâmetro de vizinhança = 5, sigmaColor = 25, sigmaSpace = 25 (evita desfocar hífens, pontos e fontes pequenas)
+        Imgproc.bilateralFilter(gray, denoised, 5, 25, 25);
         return denoised;
     }
 
@@ -201,10 +201,24 @@ public class ImagePreprocessingService {
     /**
      * Etapa d: Binarização adaptativa / limiarização de Otsu.
      * Separa de forma ótima o fundo (papel branco) do primeiro plano (texto preto).
+     * Se o limiar calculado por Otsu for muito baixo (< 80), indica fundo colorido (CNH/RG),
+     * então aplica binarização adaptativa para preservar texto em fundos heterogêneos.
      */
     public Mat applyOtsuThreshold(Mat gray) {
         Mat binarized = new Mat();
-        Imgproc.threshold(gray, binarized, 0, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
+        double threshold = Imgproc.threshold(gray, binarized, 0, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
+        log.debug("Limiar Otsu calculado: {}", String.format("%.1f", threshold));
+
+        // Limiar baixo indica fundo colorido (CNH verde, RG azul, etc.) — Otsu pode apagar texto
+        if (threshold < 80) {
+            log.info("Limiar Otsu baixo ({}) detectado — possível fundo colorido (CNH/RG). Aplicando binarização adaptativa.",
+                    String.format("%.1f", threshold));
+            binarized.release();
+            binarized = new Mat();
+            // Binarização adaptativa Gaussiana: analisa vizinhança local de 15x15 pixels
+            Imgproc.adaptiveThreshold(gray, binarized, 255,
+                    Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY, 15, 8);
+        }
         return binarized;
     }
 
@@ -217,8 +231,9 @@ public class ImagePreprocessingService {
         double angle = calculateSkewAngle(binarized);
         log.debug("Ângulo de inclinação detectado: {}°", String.format("%.2f", angle));
 
-        if (Math.abs(angle) < MIN_SKEW_ANGLE_DEG || Math.abs(angle) > MAX_SKEW_ANGLE_DEG) {
-            log.debug("Inclinação desprezível ou além da faixa segura (<0.5° ou >45°). Nenhuma rotação necessária.");
+        // Aplica rotação somente se a inclinação for real e segura (entre 1.0° e 15.0°)
+        if (Math.abs(angle) < 1.0 || Math.abs(angle) > 15.0) {
+            log.debug("Inclinação desprezível ou além da faixa segura (<1.0° ou >15°). Mantendo orientação.");
             return binarized;
         }
 

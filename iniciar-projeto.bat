@@ -6,12 +6,10 @@ echo    PROJETO VALIDACAO DE DOCUMENTOS - AVANADE 2026.2
 echo ========================================================
 echo.
 echo [1/2] Iniciando Backend Spring Boot com banco H2 embutido...
-start "Backend Spring Boot" cmd /k "cd /d "%~dp0" && mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local"
-
+start "Backend Spring Boot" /D "%~dp0" cmd /k "mvnw.cmd spring-boot:run -Dspring-boot.run.profiles=local"
 echo.
 echo [2/2] Iniciando Frontend React...
-start "Frontend React" cmd /k "cd /d "%~dp0frontend" && npm run dev"
-
+start "Frontend React" /D "%~dp0frontend" cmd /k "npm run dev"
 echo.
 echo ========================================================
 echo    Backend:  http://localhost:8080

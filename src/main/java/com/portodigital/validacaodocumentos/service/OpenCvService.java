@@ -8,5 +8,8 @@ import java.awt.image.BufferedImage;
  */
 public interface OpenCvService {
     BufferedImage preprocessar(MultipartFile file);
-}
 
+    default BufferedImage converterParaImagemOriginal(MultipartFile file) {
+        return preprocessar(file);
+    }
+}

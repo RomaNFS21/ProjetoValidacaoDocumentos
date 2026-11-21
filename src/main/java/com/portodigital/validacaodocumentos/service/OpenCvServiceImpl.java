@@ -24,5 +24,9 @@ public class OpenCvServiceImpl implements OpenCvService {
         BufferedImage originalImage = documentFileService.convertToImage(file);
         return imagePreprocessingService.preprocessImageToBufferedImage(originalImage);
     }
-}
 
+    @Override
+    public BufferedImage converterParaImagemOriginal(MultipartFile file) {
+        return documentFileService.convertToImage(file);
+    }
+}

@@ -68,6 +68,63 @@ public class OcrExtractionService implements TesseractOcrService {
         return extractText(imagem);
     }
 
+    @Override
+    public String extrairTexto(BufferedImage imagemProcessada, BufferedImage imagemOriginal) {
+        // Passe 1: OCR na imagem pré-processada (OpenCV)
+        String textoProcessado = extractText(imagemProcessada);
+        int lenProcessado = textoProcessado != null ? textoProcessado.trim().length() : 0;
+
+        // Passe 2: OCR na imagem original (sem filtros) se o resultado for insuficiente
+        String textoOriginal = null;
+        if (imagemOriginal != null && lenProcessado < 180) {
+            try {
+                textoOriginal = extractText(imagemOriginal);
+                int lenOriginal = textoOriginal != null ? textoOriginal.trim().length() : 0;
+                if (lenOriginal > lenProcessado) {
+                    log.info("Passe OCR na imagem original capturou mais texto ({} vs {}). Priorizando imagem original.",
+                            lenOriginal, lenProcessado);
+                    textoProcessado = textoOriginal;
+                    lenProcessado = lenOriginal;
+                }
+            } catch (Exception e) {
+                log.warn("Passe complementar de OCR na imagem original falhou: {}", e.getMessage());
+            }
+        }
+
+        // Passe 3: OCR com PSM=6 (single_block) na imagem original — melhor para CNH/RG que têm layout estruturado
+        if (imagemOriginal != null && lenProcessado < 250) {
+            try {
+                String textoPsm6 = extractTextWithPsm(imagemOriginal, ITessAPI.TessPageSegMode.PSM_SINGLE_BLOCK);
+                int lenPsm6 = textoPsm6 != null ? textoPsm6.trim().length() : 0;
+                if (lenPsm6 > lenProcessado) {
+                    log.info("Passe OCR PSM=6 (single_block) capturou mais texto ({} vs {}). Usando resultado PSM=6.",
+                            lenPsm6, lenProcessado);
+                    return textoPsm6;
+                }
+            } catch (Exception e) {
+                log.warn("Passe OCR PSM=6 falhou: {}", e.getMessage());
+            }
+        }
+
+        return textoProcessado;
+    }
+
+    /**
+     * Executa o OCR com um Page Segmentation Mode (PSM) alternativo,
+     * sem alterar a configuração padrão da instância principal.
+     */
+    private String extractTextWithPsm(BufferedImage image, int psmMode) {
+        ITesseract instance = createTesseractInstance();
+        instance.setPageSegMode(psmMode);
+        try {
+            String text = instance.doOCR(image);
+            return text != null ? text.trim() : "";
+        } catch (TesseractException e) {
+            log.debug("OCR PSM={} falhou: {}", psmMode, e.getMessage());
+            return "";
+        }
+    }
+
     /**
      * Extrai o texto bruto contido em uma imagem pré-processada.
      *

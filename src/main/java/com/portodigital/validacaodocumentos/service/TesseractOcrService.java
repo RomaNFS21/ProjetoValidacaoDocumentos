@@ -7,5 +7,9 @@ import java.awt.image.BufferedImage;
  */
 public interface TesseractOcrService {
     String extrairTexto(BufferedImage imagem);
+
+    default String extrairTexto(BufferedImage imagemProcessada, BufferedImage imagemOriginal) {
+        return extrairTexto(imagemProcessada);
+    }
 }
 
