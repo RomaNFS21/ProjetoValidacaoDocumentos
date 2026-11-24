@@ -48,6 +48,9 @@ public class TextoBrutoOcr {
         }
     }
 
+    public TextoBrutoOcr() {
+    }
+
     public TextoBrutoOcr(Documento documento, String conteudo) {
         this.documento = documento;
         this.documentoId = documento != null ? documento.getId() : null;

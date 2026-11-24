@@ -117,7 +117,9 @@ public class DocumentPipelineOrchestrator {
         log.info("[Etapa 2/9] Pré-processamento OpenCV concluído com sucesso");
 
         // 3. Executa a extração de texto via Tesseract OCR e salva/atualiza na tabela 'texto_bruto_ocr'
-        String textoBrutoOcr = tesseractOcrService.extrairTexto(imagemProcessada, imagemOriginal);
+        String textoBrutoOcr = (imagemOriginal != null)
+                ? tesseractOcrService.extrairTexto(imagemProcessada, imagemOriginal)
+                : tesseractOcrService.extrairTexto(imagemProcessada);
         TextoBrutoOcr textoOcrEntity = new TextoBrutoOcr(documento, textoBrutoOcr);
         textoOcrEntity = textoBrutoOcrRepository.save(textoOcrEntity);
         documento.setTextoBrutoOcr(textoOcrEntity);

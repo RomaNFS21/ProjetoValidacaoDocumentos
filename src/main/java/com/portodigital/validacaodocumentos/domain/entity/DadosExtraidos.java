@@ -64,6 +64,9 @@ public class DadosExtraidos {
         }
     }
 
+    public DadosExtraidos() {
+    }
+
     public DadosExtraidos(Documento documento, String nome, String cpf, String endereco,
                           String cidade, String estado, LocalDate dataEmissao) {
         this.documento = documento;

@@ -57,6 +57,9 @@ public class Validacao {
         }
     }
 
+    public Validacao() {
+    }
+
     public Validacao(Documento documento, StatusValidacao status, String mensagem, CriteriosValidacaoEmbeddable criterios) {
         this.documento = documento;
         this.documentoId = documento != null ? documento.getId() : null;

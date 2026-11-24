@@ -13,8 +13,13 @@ import org.springframework.stereotype.Service;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.stream.Stream;
 
 /**
  * Serviço de Extração de Texto via Tesseract OCR utilizando a biblioteca Tess4J.
@@ -229,7 +234,7 @@ public class OcrExtractionService implements TesseractOcrService {
     }
 
     /**
-     * Resolve o caminho absoluto para o diretório tessdata, verificando alternativas locais caso o configurado não exista.
+     * Resolve o caminho para o diretório tessdata, garantindo compatibilidade ASCII com a biblioteca nativa do Tesseract no Windows.
      */
     private String resolveDatapath(String configured) {
         if (configured != null && !configured.isBlank() && !"tessdata".equalsIgnoreCase(configured.trim())) {
@@ -240,13 +245,13 @@ public class OcrExtractionService implements TesseractOcrService {
                         custom.getAbsolutePath()
                 ));
             }
-            return custom.getAbsolutePath();
+            return ensureAsciiSafeDatapath(custom.toPath());
         }
 
-        // Verifica na raiz do projeto
+        // Verifica na raiz do projeto (mantém caminho relativo para evitar caracteres não-ASCII do diretório pai)
         Path localProject = Paths.get("tessdata");
         if (localProject.toFile().exists() && localProject.toFile().isDirectory()) {
-            return localProject.toAbsolutePath().toString();
+            return ensureAsciiSafeDatapath(localProject);
         }
 
         // Verifica variável de ambiente TESSDATA_PREFIX
@@ -254,17 +259,84 @@ public class OcrExtractionService implements TesseractOcrService {
         if (envPrefix != null && !envPrefix.isBlank()) {
             File envFile = new File(envPrefix);
             if (envFile.exists() && envFile.isDirectory()) {
-                return envFile.getAbsolutePath();
+                return ensureAsciiSafeDatapath(envFile.toPath());
             }
         }
 
         // Caminho padrão do instalador no Windows
         File windowsDefault = new File("C:\\Program Files\\Tesseract-OCR\\tessdata");
         if (windowsDefault.exists() && windowsDefault.isDirectory()) {
-            return windowsDefault.getAbsolutePath();
+            return ensureAsciiSafeDatapath(windowsDefault.toPath());
         }
 
         throw new OcrProcessingException("Nenhum diretório tessdata válido foi encontrado na aplicação ou no sistema.");
+    }
+
+    /**
+     * A biblioteca nativa C++ do Tesseract (via JNA) no Windows falha ao abrir caminhos com acentos/não-ASCII.
+     * Se o caminho contiver caracteres não-ASCII, tenta usar caminho relativo ao diretório de trabalho ou
+     * copia os modelos .traineddata para um diretório temporário ASCII.
+     */
+    private String ensureAsciiSafeDatapath(Path dir) {
+        String raw = dir.toString();
+        if (!dir.isAbsolute() && isAscii(raw)) {
+            return raw;
+        }
+
+        String abs = dir.toAbsolutePath().normalize().toString();
+        if (isAscii(abs)) {
+            return abs;
+        }
+
+        // Tenta caminho relativo ao CWD (ex: "tessdata")
+        Path cwd = Paths.get("").toAbsolutePath().normalize();
+        Path absPath = dir.toAbsolutePath().normalize();
+        if (absPath.startsWith(cwd)) {
+            String rel = cwd.relativize(absPath).toString();
+            if (!rel.isEmpty() && isAscii(rel)) {
+                return rel;
+            }
+        }
+
+        // Fallback: copia arquivos .traineddata para um diretório temporário puramente ASCII
+        try {
+            Path tempBase = resolveAsciiTempDir();
+            Path targetDir = tempBase.resolve("projeto-validacao-tessdata");
+            Files.createDirectories(targetDir);
+            try (Stream<Path> files = Files.list(absPath)) {
+                files.filter(p -> Files.isRegularFile(p) && p.getFileName().toString().endsWith(".traineddata"))
+                        .forEach(src -> {
+                            try {
+                                Path dst = targetDir.resolve(src.getFileName());
+                                if (!Files.exists(dst) || Files.size(dst) != Files.size(src)) {
+                                    Files.copy(src, dst, StandardCopyOption.REPLACE_EXISTING);
+                                }
+                            } catch (IOException e) {
+                                log.warn("Não foi possível copiar {} para diretório ASCII temporário: {}", src, e.getMessage());
+                            }
+                        });
+            }
+            return targetDir.toAbsolutePath().toString();
+        } catch (IOException e) {
+            log.warn("Falha ao criar diretório tessdata ASCII temporário, usando caminho original: {}", e.getMessage());
+            return abs;
+        }
+    }
+
+    private Path resolveAsciiTempDir() {
+        String sysTemp = System.getProperty("java.io.tmpdir");
+        if (sysTemp != null && isAscii(sysTemp)) {
+            return Paths.get(sysTemp);
+        }
+        Path publicTemp = Paths.get("C:\\Users\\Public");
+        if (Files.isDirectory(publicTemp) && Files.isWritable(publicTemp)) {
+            return publicTemp;
+        }
+        return Paths.get(sysTemp != null ? sysTemp : ".");
+    }
+
+    private boolean isAscii(String value) {
+        return value != null && StandardCharsets.US_ASCII.newEncoder().canEncode(value);
     }
 
     public String getResolvedDatapath() {

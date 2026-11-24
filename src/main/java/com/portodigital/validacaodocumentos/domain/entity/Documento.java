@@ -60,6 +60,9 @@ public class Documento {
         }
     }
 
+    public Documento() {
+    }
+
     public Documento(String nomeArquivo, TipoDocumento tipoDocumento) {
         this.nomeArquivo = nomeArquivo;
         this.tipoDocumento = tipoDocumento;
